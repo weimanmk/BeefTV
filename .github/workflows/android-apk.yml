@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-${{ github.ref }}
+  group: android-apk-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -98,6 +98,7 @@ jobs:
             adb exec-out screencap -p > android-workspace.png
       - name: Capture logs
         if: always()
+        timeout-minutes: 1
         run: timeout 15s adb logcat -d > android-logcat.txt || true
       - uses: actions/upload-artifact@v4
         if: always()
