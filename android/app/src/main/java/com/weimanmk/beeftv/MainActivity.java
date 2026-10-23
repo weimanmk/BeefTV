@@ -43,6 +43,7 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileCallback;
     private String pendingURL;
     private String pendingExportId;
+    private JSONObject deferredExport;
     private java.io.File pendingFile;
     private PermissionRequest microphoneRequest;
     private View fullscreen;
@@ -81,6 +82,7 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         resumed = true;
+        if (deferredExport != null) { JSONObject job = deferredExport; deferredExport = null; beginMobileExport(job); }
         browserHandler.removeCallbacks(browserPoll);
         if (accountBrowserTarget != null) {
             String target = accountBrowserTarget; accountBrowserTarget = null;
@@ -143,11 +145,7 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 browserPollInFlight = false;
                 if (isDestroyed()) { if (job != null) finishExport(job.optString("id"), "failed"); return; }
-                if (job != null) {
-                    pendingExportId = job.optString("id");
-                    pendingURL = baseURL + "/api/mobile/exports/" + pendingExportId + "/file";
-                    chooseSave(job.optString("fileName", "BeefTV-export"), job.optString("mime"));
-                }
+                if (job != null) beginMobileExport(job);
                 if (!pending.isEmpty()) {
                     if (resumed) openAccountBrowser(pending);
                     else accountBrowserTarget = pending;
@@ -157,6 +155,18 @@ public class MainActivity extends Activity {
         });
     }
 
+
+    private void beginMobileExport(JSONObject job) {
+        if (!resumed) { deferredExport = job; return; }
+        if (pendingURL != null || pendingFile != null || pendingExportId != null) {
+            finishExport(job.optString("id"), "failed");
+            toast("请先完成当前文件保存");
+            return;
+        }
+        pendingExportId = job.optString("id");
+        pendingURL = baseURL + "/api/mobile/exports/" + pendingExportId + "/file";
+        chooseSave(job.optString("fileName", "BeefTV-export"), job.optString("mime"));
+    }
 
     private JSONObject mobileRequest(String path, String state) throws Exception {
         HttpURLConnection connection = (HttpURLConnection)new URL(baseURL + path).openConnection();
@@ -432,6 +442,7 @@ public class MainActivity extends Activity {
         if (fileCallback != null) { fileCallback.onReceiveValue(null); fileCallback = null; }
         if (microphoneRequest != null) { microphoneRequest.deny(); microphoneRequest = null; }
         finishExport(pendingExportId, "failed"); pendingExportId = null;
+        if (deferredExport != null) { finishExport(deferredExport.optString("id"), "failed"); deferredExport = null; }
         clearPendingFile();
         if (web != null) { root.removeView(web); web.destroy(); web = null; }
         // The Go singleton survives orientation/activity recreation. Android closes
