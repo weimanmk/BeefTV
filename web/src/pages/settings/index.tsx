@@ -71,7 +71,7 @@ export default function SettingsPage() {
     const panes: Record<Exclude<ConfigSectionKey, "diagnostics">, ReactNode> = {
         channels: (
             <SettingsPane>
-                {isAndroidMobile ? <Alert type="info" showIcon title="手机工作区" description="画布、素材和模型渠道保存在本机。模型生成需要可用的 HTTPS 渠道；切到后台可能中断任务。桌面 Agent、FFmpeg 时间线导出、深度捕捉和桌面插件暂不支持。卸载前请导出画布与素材。" /> : null}
+                {isAndroidMobile ? <Alert type="info" showIcon title="手机工作区" description="画布、素材和模型渠道保存在本机。模型生成需要配置可用渠道，建议使用 HTTPS；切到后台可能中断任务。桌面 Agent、FFmpeg 时间线导出、深度捕捉和桌面插件暂不支持。卸载前请导出画布与素材。" /> : null}
                 <ChannelSettingsPane onOpenDiagnostics={() => selectSection("diagnostics")} />
                 <div className="settings-section model-default-section">
                     <div className="settings-pane-header">

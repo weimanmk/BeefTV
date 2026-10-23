@@ -16,12 +16,14 @@ import org.json.JSONObject;
 
 /** Exercises the packaged native library, real SQLite, Cookie boundary and rendered SPA. */
 public class MobileSmoke extends Instrumentation {
+    private MainActivity activeActivity;
     @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
             Intent launch = new Intent(getTargetContext(), MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             MainActivity activity = (MainActivity)startActivitySync(launch);
+            activeActivity = activity;
             JSONObject session = new JSONObject(MainActivity.startBackend(new java.io.File(getTargetContext().getFilesDir(), "workspace").getAbsolutePath()));
             check(!session.has("error"), "Native backend startup failed: " + session.optString("error"));
             String url = session.getString("url");
@@ -66,7 +68,12 @@ public class MobileSmoke extends Instrumentation {
             result.putString("stream", "MOBILE_SMOKE_OK: startup, session, project/canvas/config/resource restart persistence, model revision conflicts, WebView multipart upload, resource bytes, folders/assets CRUD, task list, history restore, mobile routes, microphone, 34MB blob export and cancellation cleanup\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable failure) {
-            result.putString("stream", "MOBILE_SMOKE_FAILED: " + failure + "\n");
+            String details = "";
+            try {
+                captureScreen("failure.png");
+                if (activeActivity != null) details = evaluate(activeActivity, "JSON.stringify({url:location.href,text:document.body.innerText.slice(0,3000),nodes:document.querySelectorAll('[data-node-id]').length})");
+            } catch (Exception ignored) { }
+            result.putString("stream", "MOBILE_SMOKE_FAILED: " + failure + "\nPAGE: " + details + "\n");
             finish(Activity.RESULT_CANCELED, result);
         }
     }
@@ -146,6 +153,8 @@ public class MobileSmoke extends Instrumentation {
             .put("canvasId", "mobile-canvas-save-smoke").put("expectedRevision", actual.getInt("revision")).put("document", new JSONObject()
                 .put("title", before.getString("title")).put("nodes", before.getJSONArray("nodes")).put("connections", before.getJSONArray("connections"))));
         data(browserCommit(activity, payload));
+        JSONObject after = data(request(endpoint, cookie, null)).getJSONObject("project");
+        check(before.getJSONArray("nodes").toString().equals(after.getJSONArray("nodes").toString()), "History test failed to return to original nodes: " + after);
     }
     private void verifyRoutes(MainActivity activity, String url) throws Exception {
         check(java.util.Arrays.asList(MainActivity.fileMimeTypes(new String[]{".zip,.json", "image/*"})).contains("application/zip"), "ZIP file picker filter missing");
@@ -161,8 +170,16 @@ public class MobileSmoke extends Instrumentation {
             }
             check(ready, "Mobile route failed to render: " + route[0]);
             check("true".equals(evaluate(activity, "document.documentElement.scrollWidth <= innerWidth+2")), "Horizontal overflow: " + route[0]);
+            captureScreen("route-" + route[0].replace('/', '_') + ".png");
         }
         check("true".equals(evaluate(activity, "!document.querySelector('.canvas-topbar-agent-button')")), "Unavailable desktop assistant shown on mobile");
+    }
+    private void captureScreen(String name) throws Exception {
+        android.graphics.Bitmap screenshot = getUiAutomation().takeScreenshot();
+        if (screenshot == null) return;
+        try (java.io.FileOutputStream output = new java.io.FileOutputStream(new java.io.File(getTargetContext().getExternalFilesDir(null), name))) {
+            screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output);
+        } finally { screenshot.recycle(); }
     }
     private void verifyRecording(MainActivity activity) throws Exception {
         JSONObject recorded = browserJSON(activity, "(async()=>{const stream=await navigator.mediaDevices.getUserMedia({audio:true});try{return await new Promise((resolve,reject)=>{const chunks=[];const r=new MediaRecorder(stream);r.ondataavailable=e=>chunks.push(e.data);r.onerror=reject;r.onstop=()=>resolve({code:0,data:{bytes:new Blob(chunks).size}});r.start();setTimeout(()=>r.stop(),500)})}finally{stream.getTracks().forEach(t=>t.stop())}})()");

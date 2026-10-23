@@ -92,15 +92,15 @@ jobs:
             adb install -t apk/app-debug-androidTest.apk
             adb shell pm grant com.weimanmk.beeftv.mobile android.permission.RECORD_AUDIO
             adb shell am instrument -w com.weimanmk.beeftv.mobile.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-first.txt
+            adb pull /sdcard/Android/data/com.weimanmk.beeftv.mobile/files android-evidence
+            adb logcat -d > android-logcat.txt
             grep -q MOBILE_SMOKE_OK smoke-first.txt
             adb shell am force-stop com.weimanmk.beeftv.mobile
             adb shell am instrument -w com.weimanmk.beeftv.mobile.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-restart.txt
+            adb pull /sdcard/Android/data/com.weimanmk.beeftv.mobile/files android-evidence-restart
+            adb logcat -d > android-logcat.txt
             grep -q MOBILE_SMOKE_OK smoke-restart.txt
             adb pull /sdcard/Android/data/com.weimanmk.beeftv.mobile/files/workspace.png android-workspace.png
-      - name: Capture logs
-        if: always()
-        timeout-minutes: 1
-        run: timeout 15s adb logcat -d > android-logcat.txt || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -109,4 +109,5 @@ jobs:
             smoke-*.txt
             android-workspace.png
             android-logcat.txt
+            android-evidence*/
           retention-days: 7
