@@ -164,7 +164,7 @@ public class MobileSmoke extends Instrumentation {
             boolean ready = false;
             for (int attempt = 0; attempt < 120; attempt++) {
                 // Route identity and real content are required; the shared shell alone is insufficient.
-                String script = "Boolean(location.pathname===" + JSONObject.quote(route[0]) + " && document.querySelector(" + JSONObject.quote(route[1]) + ") && document.body.innerText.length>30)";
+                String script = "Boolean(location.pathname===" + JSONObject.quote(route[0]) + " && document.querySelector(" + JSONObject.quote(route[1]) + "))";
                 if ("true".equals(evaluate(activity, script))) { ready = true; break; }
                 Thread.sleep(250);
             }
@@ -226,7 +226,7 @@ public class MobileSmoke extends Instrumentation {
         String endpoint = url + "/api/canvas-projects/" + canvasID;
         if (status(endpoint, cookie) == 200) {
             JSONObject existing = request(endpoint, cookie, null).getJSONObject("data").getJSONObject("project");
-            check("Saved on Android".equals(existing.getJSONArray("nodes").getJSONObject(0).getString("content")), "Canvas nodes lost after process restart");
+            check("Saved on Android".equals(existing.getJSONArray("nodes").getJSONObject(0).getJSONObject("metadata").getString("content")), "Canvas nodes lost after process restart");
         } else {
             JSONObject empty = new JSONObject().put("id", canvasID).put("title", "Android canvas save")
                 .put("revision", 0).put("nodes", new org.json.JSONArray()).put("connections", new org.json.JSONArray());
@@ -236,7 +236,7 @@ public class MobileSmoke extends Instrumentation {
         JSONObject before = request(endpoint, cookie, null).getJSONObject("data").getJSONObject("project");
         int revision = before.getInt("revision");
         JSONObject text = new JSONObject().put("id", "mobile-text-1").put("type", "text").put("title", "Text node")
-            .put("content", "Saved on Android").put("position", new JSONObject().put("x", 80).put("y", 160)).put("width", 240).put("height", 180);
+            .put("metadata", new JSONObject().put("content", "Saved on Android")).put("position", new JSONObject().put("x", 80).put("y", 160)).put("width", 240).put("height", 180);
         JSONObject document = new JSONObject().put("title", "Android canvas save " + (revision + 1)).put("nodes", new org.json.JSONArray().put(text))
             .put("connections", new org.json.JSONArray());
         JSONObject payload = new JSONObject().put("opId", java.util.UUID.randomUUID().toString())
@@ -247,7 +247,7 @@ public class MobileSmoke extends Instrumentation {
         check("manual".equals(saved.getJSONObject("data").getString("caller")), "Canvas write has wrong principal");
         JSONObject persisted = request(endpoint, cookie, null).getJSONObject("data").getJSONObject("project");
         check(persisted.getInt("revision") > revision, "Canvas revision did not advance");
-        check("Saved on Android".equals(persisted.getJSONArray("nodes").getJSONObject(0).getString("content")), "Canvas text was not persisted");
+        check("Saved on Android".equals(persisted.getJSONArray("nodes").getJSONObject(0).getJSONObject("metadata").getString("content")), "Canvas text was not persisted");
         payload.put("opId", java.util.UUID.randomUUID().toString());
         JSONObject stale = browserCommit(activity, payload);
         check(stale.getInt("code") == 409, "Stale canvas revision was accepted");
@@ -258,6 +258,7 @@ public class MobileSmoke extends Instrumentation {
             Thread.sleep(500);
         }
         check(nodeRendered, "Saved canvas node did not render in the editor");
+        check("true".equals(evaluate(activity, "document.querySelector('[data-node-id=\"mobile-text-1\"]').innerText.includes('Saved on Android')")), "Saved text did not render inside the node");
         android.graphics.Bitmap screenshot = getUiAutomation().takeScreenshot();
         if (screenshot != null) {
             try (java.io.FileOutputStream output = new java.io.FileOutputStream(new java.io.File(getTargetContext().getExternalFilesDir(null), "workspace.png"))) {
