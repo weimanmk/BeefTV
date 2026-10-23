@@ -58,7 +58,7 @@ export function EditorSubtitleTools() {
         a.href = url;
         a.download = "subtitles.srt";
         a.click();
-        URL.revokeObjectURL(url);
+        window.setTimeout(() => URL.revokeObjectURL(url), 40_000);
         setMessage(`已导出 ${entries.length} 条字幕`);
     };
 

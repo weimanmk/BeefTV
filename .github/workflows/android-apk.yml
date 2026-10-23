@@ -91,6 +91,8 @@ jobs:
             adb install apk/app-debug.apk
             adb install -t apk/app-debug-androidTest.apk
             adb shell pm grant com.weimanmk.beeftv.mobile android.permission.RECORD_AUDIO
+            adb shell 'echo "_ --use-fake-device-for-media-stream" > /data/local/tmp/webview-command-line'
+            adb shell chmod 644 /data/local/tmp/webview-command-line
             adb shell am instrument -w com.weimanmk.beeftv.mobile.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-first.txt
             adb pull /sdcard/Android/data/com.weimanmk.beeftv.mobile/files android-evidence
             adb logcat -d > android-logcat.txt

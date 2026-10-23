@@ -200,7 +200,7 @@ export function EditorExport() {
             a.href = url;
             a.download = "timeline-export.mp4";
             a.click();
-            URL.revokeObjectURL(url);
+            window.setTimeout(() => URL.revokeObjectURL(url), 40_000);
             setState({ phase: "done", mode: "local", percent: 100, detail: "导出完成，已开始下载", result: null });
         } catch (error) {
             setState({

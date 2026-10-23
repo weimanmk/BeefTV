@@ -929,7 +929,8 @@ function downloadCreationConversation(conversation: CreationConversation, assist
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-    URL.revokeObjectURL(url);
+    // Android reads the blob after the browser dispatches its download event.
+    window.setTimeout(() => URL.revokeObjectURL(url), 40_000);
 }
 function conversationPreviewMessage(conversation: CreationConversation) {
     let fallback: CreationMessage | undefined;

@@ -726,7 +726,7 @@ async function downloadArtifact(artifact: ShotArtifact, shotTitle: string, onErr
         anchor.href = url;
         anchor.download = `${shotTitle || "shot"}-v${artifact.version}.${artifact.type === "video" ? "mp4" : "png"}`;
         anchor.click();
-        URL.revokeObjectURL(url);
+        window.setTimeout(() => URL.revokeObjectURL(url), 40_000);
     } catch (error) {
         onError(error instanceof Error ? `下载失败：${error.message}` : "下载失败");
     }

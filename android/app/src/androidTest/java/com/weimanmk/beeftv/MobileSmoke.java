@@ -170,6 +170,7 @@ public class MobileSmoke extends Instrumentation {
             }
             check(ready, "Mobile route failed to render: " + route[0]);
             check("true".equals(evaluate(activity, "document.documentElement.scrollWidth <= innerWidth+2")), "Horizontal overflow: " + route[0]);
+            Thread.sleep(1000);
             captureScreen("route-" + route[0].replace('/', '_') + ".png");
         }
         check("true".equals(evaluate(activity, "!document.querySelector('.canvas-topbar-agent-button')")), "Unavailable desktop assistant shown on mobile");
