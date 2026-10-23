@@ -132,7 +132,8 @@ export function CanvasDirectorWorkbench({ open, scene, projectId, imageNodes, on
         return () => window.removeEventListener("keydown", cancel, true);
     }, [drawingActorId, drawingCameraKind]);
     const [sceneAddMenuOpen, setSceneAddMenuOpen] = useState(false);
-    const [leftDockCollapsed, setLeftDockCollapsed] = useState(false);
+    const [leftDockCollapsed, setLeftDockCollapsed] = useState(() => window.innerWidth < 1024);
+    const [propertyDockOpen, setPropertyDockOpen] = useState(false);
     const [sceneSearch, setSceneSearch] = useState("");
     const [crowdConfigOpen, setCrowdConfigOpen] = useState(false);
     const [crowdConfigPosition, setCrowdConfigPosition] = useState({ left: 288, top: 240 });
@@ -1649,14 +1650,16 @@ export function CanvasDirectorWorkbench({ open, scene, projectId, imageNodes, on
                     <span aria-label="导演台保存状态" aria-live="polite" title={saveIndicator.label} className="min-w-0 flex-1 truncate text-[10px]" style={{ color: saveIndicator.tone === "danger" ? "var(--status-error)" : undefined, opacity: saveIndicator.tone === "idle" ? 0.55 : 1 }}>{saveIndicator.label}</span>
                     <IconButton label={leftDockCollapsed ? "展开场景面板" : "折叠场景面板"} expanded={!leftDockCollapsed} controls="director-workbench-left-dock" onClick={() => setLeftDockCollapsed((collapsed) => !collapsed)}>{leftDockCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}</IconButton>
                 </div>
+                {workspaceView === "scene" && <button type="button" className="shrink-0 rounded-lg border px-3 py-2 text-xs lg:hidden" aria-label={propertyDockOpen ? "收起属性面板" : "展开属性面板"} aria-expanded={propertyDockOpen} aria-controls="director-workbench-property-dock" onClick={() => setPropertyDockOpen((open) => !open)}>场景属性</button>}
                 {exportNotice ? <DirectorExportNotice {...exportNotice} background={theme.toolbar.panel} /> : null}
             </header>
 
-            <div className={`grid min-h-0 flex-1 ${workspaceView === "preview" ? "grid-cols-1" : leftDockCollapsed ? "grid-cols-[48px_minmax(0,1fr)_280px] max-lg:grid-cols-[48px_minmax(0,1fr)]" : "grid-cols-[280px_minmax(0,1fr)_280px] max-lg:grid-cols-[220px_minmax(0,1fr)]"}`}>
+            <div className={`relative grid min-h-0 flex-1 ${workspaceView === "preview" ? "grid-cols-1" : leftDockCollapsed ? "grid-cols-[48px_minmax(0,1fr)_280px] max-lg:grid-cols-[48px_minmax(0,1fr)]" : "grid-cols-[280px_minmax(0,1fr)_280px] max-lg:grid-cols-[220px_minmax(0,1fr)]"}`}>
                 {workspaceView === "scene" ? <>
                 <aside id="director-workbench-left-dock" data-director-left-dock="true" className="director-workbench-sidebar flex min-h-0 overflow-hidden border-r" style={{ background: theme.node.panel, borderColor: theme.toolbar.border }}>
                     <DirectorWorkbenchRail active={navigationTab} onHelp={() => setOnboardingRestartSignal((value) => value + 1)} onChange={(tab) => {
                         setNavigationTab(tab);
+                        setLeftDockCollapsed(false);
                         if (tab === "assets") setSceneImportModalOpen(true);
                         // 左侧入口只切换素材/预设面板；对象选择与右侧检查器由实际选中项决定。
                     }} />
@@ -1831,7 +1834,7 @@ export function CanvasDirectorWorkbench({ open, scene, projectId, imageNodes, on
                 </main>
 
                 {workspaceView === "scene" ? <>
-                <aside data-director-right-dock="true" className="director-workbench-property-dock flex min-h-0 flex-col overflow-hidden border-l max-lg:col-span-2 max-lg:max-h-[40vh] max-lg:border-l-0 max-lg:border-t" style={{ background: theme.node.panel, borderColor: theme.toolbar.border }}>
+                <aside id="director-workbench-property-dock" data-director-right-dock="true" className={`director-workbench-property-dock flex min-h-0 flex-col overflow-hidden border-l max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-30 max-lg:w-[min(280px,80vw)] ${propertyDockOpen ? "" : "max-lg:hidden"}`} style={{ background: theme.node.panel, borderColor: theme.toolbar.border }}>
                     {/* 摄影机模式下右栏固定显示 shot/camera 检查器：对齐视图与运镜是这个模式的主入口。 */}
                     <div data-director-property-inspector="true" className="director-workbench-property-inspector thin-scrollbar">
                         {selectedGroup && !capabilities.cameraTools ? <Inspector title={selectedGroup.name} onTitleChange={(name) => commit((current) => ({ ...current, groups: current.groups?.map((group) => group.id === selectedGroup.id ? { ...group, name } : group) }))}><Field label="对象">{draft.objects.filter((object) => object.groupId === selectedGroup.id).length}</Field></Inspector>

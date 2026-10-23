@@ -18,7 +18,7 @@ const tabs = [
 export function DirectorWorkbenchRail({ active, onChange, onHelp }: { active: DirectorWorkbenchTab; onChange: (tab: DirectorWorkbenchTab) => void; onHelp: () => void }) {
     const theme = canvasThemes[useActiveTheme()];
     return (
-        <nav aria-label="导演台工作区" className="flex w-12 shrink-0 flex-col items-center gap-2 border-r p-2" style={{ borderColor: theme.toolbar.border }}>
+        <nav aria-label="导演台工作区" className="flex min-h-0 w-12 shrink-0 flex-col items-center gap-2 overflow-y-auto border-r p-2" style={{ borderColor: theme.toolbar.border }}>
             {tabs.map(({ id, label, icon: Icon }) => (
                 <Fragment key={id}>
                 <button
@@ -27,12 +27,12 @@ export function DirectorWorkbenchRail({ active, onChange, onHelp }: { active: Di
                     aria-pressed={active === id}
                     title={label}
                     onClick={() => onChange(id)}
-                    className="flex size-8 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-2"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-2"
                     style={{ background: active === id ? theme.toolbar.itemHover : "transparent", color: active === id ? theme.node.text : theme.node.muted }}
                 >
                     <Icon className="size-4" aria-hidden />
                 </button>
-                {id === "scene" ? <span aria-hidden className="h-2 w-8 border-b" style={{ borderColor: theme.toolbar.border }} /> : null}
+                {id === "scene" ? <span aria-hidden className="h-2 w-8 shrink-0 border-b" style={{ borderColor: theme.toolbar.border }} /> : null}
                 </Fragment>
             ))}
             <button
@@ -42,7 +42,7 @@ export function DirectorWorkbenchRail({ active, onChange, onHelp }: { active: Di
                 style={{ marginTop: "auto", color: theme.node.muted }}
                 title="帮助与快捷键"
                 onClick={onHelp}
-                className="mt-auto flex size-8 items-center justify-center rounded-lg outline-none transition-colors hover:bg-white/10 focus-visible:ring-2"
+                className="mt-auto flex size-8 shrink-0 items-center justify-center rounded-lg outline-none transition-colors hover:bg-white/10 focus-visible:ring-2"
             >
                 <CircleHelp className="size-4" aria-hidden />
             </button>

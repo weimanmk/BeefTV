@@ -62,10 +62,11 @@ public class MobileSmoke extends Instrumentation {
             check(request(url + "/api/tasks?pageSize=10", cookie, null).getInt("code") == 0, "Task list failed");
             verifyCanvasSave(activity, url, cookie);
             verifyHistory(activity, url, cookie);
+            verifyMobileLayout(activity, url);
             verifyRoutes(activity, url);
             verifyRecording(activity);
             verifyBlobExport(activity);
-            result.putString("stream", "MOBILE_SMOKE_OK: startup, session, project/canvas/config/resource restart persistence, model revision conflicts, WebView multipart upload, resource bytes, folders/assets CRUD, task list, history restore, mobile routes, microphone, 34MB blob export and cancellation cleanup\n");
+            result.putString("stream", "MOBILE_SMOKE_OK: startup, session, project/canvas/config/resource restart persistence, model revision conflicts, WebView multipart upload, resource bytes, folders/assets CRUD, task list, history restore, landscape, drawer navigation, model form scroll, director panels, mobile routes, microphone, 34MB blob export and cancellation cleanup\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable failure) {
             String details = "";
@@ -156,6 +157,61 @@ public class MobileSmoke extends Instrumentation {
         JSONObject after = data(request(endpoint, cookie, null)).getJSONObject("project");
         check(before.getJSONArray("nodes").toString().equals(after.getJSONArray("nodes").toString()), "History test failed to return to original nodes: " + after);
     }
+
+    private void awaitDOM(MainActivity activity, String expression, String message) throws Exception {
+        for (int attempt = 0; attempt < 160; attempt++) {
+            if ("true".equals(evaluate(activity, "Boolean(" + expression + ")"))) return;
+            Thread.sleep(250);
+        }
+        throw new AssertionError(message);
+    }
+    private void clickDOM(MainActivity activity, String selector) throws Exception {
+        String query = JSONObject.quote(selector);
+        check("true".equals(evaluate(activity, "(()=>{const e=document.querySelector(" + query + ");if(!e)return false;e.scrollIntoView({block:'nearest'});const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);if(!r.width||!r.height||!e.contains(hit))return false;e.click();return true})()")), "Control hidden or covered: " + selector);
+        Thread.sleep(400);
+    }
+    private void verifyMobileLayout(MainActivity activity, String url) throws Exception {
+        check(activity.getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE, "APK did not force landscape");
+        check("true".equals(evaluate(activity, "innerWidth>innerHeight && innerWidth<1024")), "Landscape mobile viewport unavailable");
+        evaluate(activity, "localStorage.setItem('infinite-canvas:workspace-sidebar-collapsed','1')");
+        runOnMainSync(() -> activity.web.loadUrl(url + "/"));
+        awaitDOM(activity, "document.querySelector('.beeftv-home')", "Home missing");
+        clickDOM(activity, "[aria-label='展开侧栏']");
+        awaitDOM(activity, "document.querySelector('.workspace-mobile-navigation [data-nav-id=assets]')", "Mobile drawer missing");
+        Thread.sleep(600);
+        captureScreen("mobile-navigation.png");
+        clickDOM(activity, ".workspace-mobile-navigation [data-nav-id='assets']");
+        awaitDOM(activity, "location.pathname==='/assets' && !document.querySelector('.workspace-mobile-navigation .ant-drawer-body')", "Drawer navigation did not close");
+        clickDOM(activity, "[aria-label='展开侧栏']");
+        clickDOM(activity, ".workspace-mobile-navigation [aria-label='收起侧栏']");
+        awaitDOM(activity, "!document.querySelector('.workspace-mobile-navigation .ant-drawer-body')", "Drawer close failed");
+        runOnMainSync(() -> activity.web.loadUrl(url + "/settings?section=channels"));
+        awaitDOM(activity, "document.querySelector('.settings-pane-header-actions .ant-btn')", "Model settings missing");
+        check("true".equals(evaluate(activity, "(()=>{const b=[...document.querySelectorAll('.settings-pane-header-actions button')].find(e=>e.innerText.includes('添加模型服务'));if(!b)return false;b.click();return true})()")), "Add model service missing");
+        awaitDOM(activity, "document.querySelector('.model-service-modal input[aria-label='服务地址']')", "Model form missing");
+        for (String label : new String[]{"连接名称", "API Key", "服务地址"}) {
+            clickDOM(activity, ".model-service-modal input[aria-label='" + label + "']");
+            check("true".equals(evaluate(activity, "(()=>{const e=document.querySelector('.model-service-modal input[aria-label=\"" + label + "\"]'),r=e.getBoundingClientRect(),p=document.querySelector('.model-service-modal .ant-modal-body').getBoundingClientRect();return r.height>20&&r.top>=p.top-1&&r.bottom<=p.bottom+1})()")), "Model input clipped: " + label);
+        }
+        captureScreen("model-form-landscape.png");
+        clickDOM(activity, ".model-service-modal .ant-modal-close");
+        runOnMainSync(() -> activity.web.loadUrl(url + "/canvas?mode=new&start=director"));
+        awaitDOM(activity, "document.querySelector('[data-director-workbench]')", "Director did not open");
+        Thread.sleep(1500);
+        check("true".equals(evaluate(activity, "(()=>{const root=document.querySelector('[data-director-workbench]'),v=root.querySelector('main').getBoundingClientRect(),p=root.querySelector('[data-director-right-dock]').getBoundingClientRect();return root.dataset.leftDockCollapsed==='true'&&p.width===0&&v.width>innerWidth*.7&&v.height>innerHeight*.65})()")), "Director viewport squeezed by docks");
+        captureScreen("director-landscape.png");
+        // Panel controls must remain reachable even on a short landscape screen.
+        clickDOM(activity, "[aria-label='展开场景面板']");
+        awaitDOM(activity, "document.querySelector('[data-director-workbench]').dataset.leftDockCollapsed==='false'", "Scene panel did not expand");
+        clickDOM(activity, "[aria-label='折叠场景面板']");
+        clickDOM(activity, "[aria-label='展开属性面板']");
+        check("true".equals(evaluate(activity, "document.querySelector('[data-director-right-dock]').getBoundingClientRect().width>200")), "Property panel did not open");
+        captureScreen("director-properties.png");
+        clickDOM(activity, "[aria-label='收起属性面板']");
+        clickDOM(activity, "[aria-label='关闭导演台']");
+        awaitDOM(activity, "!document.querySelector('[data-director-workbench]')", "Director did not close");
+    }
+
     private void verifyRoutes(MainActivity activity, String url) throws Exception {
         check(java.util.Arrays.asList(MainActivity.fileMimeTypes(new String[]{".zip,.json", "image/*"})).contains("application/zip"), "ZIP file picker filter missing");
         String[][] routes = {{"/canvas", ".lib-tv-project-page"}, {"/assets", ".assets-library-page"}, {"/settings", ".settings-page"}, {"/canvas/mobile-canvas-save-smoke", "[data-node-id='mobile-text-1']"}};

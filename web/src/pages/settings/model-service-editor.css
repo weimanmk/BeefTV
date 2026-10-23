@@ -1,5 +1,6 @@
 .model-service-modal .ant-modal-container { display:flex; flex-direction:column; max-height:calc(100dvh - 48px); }
-.model-service-modal .ant-modal-body { display:flex; flex-direction:column; min-height:0; }
+.model-service-modal .ant-modal-body { display:flex; flex:1 1 auto; flex-direction:column; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+.model-service-header, .model-service-footer { flex:none; }
 .model-service-header { padding:28px 32px 20px; border-bottom:1px solid var(--workspace-border); }
 .model-service-header h2 { margin:0; font-size:24px; line-height:1.4; font-weight:650; letter-spacing:-.025em; }
 .model-service-form-title p,.model-service-catalog-header p { color:var(--muted-foreground); font-size:13px; margin:4px 0 0; line-height:1.7; }
@@ -8,7 +9,7 @@
 .model-service-steps li > span { display:grid; place-items:center; width:22px; height:22px; border-radius:50%; background:var(--surface-active); }
 .model-service-steps [aria-current] { color:var(--foreground); font-weight:600; }
 .model-service-steps [aria-current] > span { background:var(--workspace-accent); color:var(--primary-foreground); }
-.model-service-body { overflow-y:auto; min-height:0; overscroll-behavior:contain; }
+.model-service-body { flex:none; overflow:visible; min-height:0; }
 .model-service-connection { display:grid; grid-template-columns:270px minmax(0,1fr); }
 .model-service-providers { padding:24px 20px; background:var(--surface-hover); border-right:1px solid var(--workspace-border); }
 .model-service-label { font-size:12px; margin:0 0 12px; color:var(--muted-foreground); }
@@ -66,4 +67,14 @@
  .model-service-feedback { padding:0 20px 16px; }
  .model-service-catalog-header { align-items:flex-start; }
  .model-service-model { gap:8px; }
+}
+
+/* A single scroll owner keeps the form reachable with a landscape keyboard. */
+@media (max-height: 500px) {
+    .model-service-modal .ant-modal-container { max-height:calc(100dvh - 16px); }
+    .model-service-header { padding:12px 20px; }
+    .model-service-header h2 { font-size:18px; padding-right:24px; }
+    .model-service-steps { margin-top:8px; }
+    .model-service-fields, .model-service-providers { padding:16px 20px; }
+    .model-service-footer { padding:10px 20px; }
 }

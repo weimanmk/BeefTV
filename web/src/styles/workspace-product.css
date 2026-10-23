@@ -1458,10 +1458,12 @@
     line-height: 18px;
 }
 
+@media (max-width: 1023px) {
+    .app-user-workspace.app-product-workspace .app-workspace-stage > div { padding-top: 64px; }
+    .workspace-mobile-navigation .app-workspace-sidebar-nav { width: 100%; min-height: 0; }
+}
+
 @media (max-width: 720px) {
-    .app-user-workspace.app-product-workspace .app-workspace-stage > div {
-        padding-top: 64px;
-    }
 
     .app-product-workspace .app-section-page .app-section-page-content {
         padding: 0 20px 28px;
