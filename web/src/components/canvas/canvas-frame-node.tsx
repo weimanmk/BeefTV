@@ -239,6 +239,13 @@ export const CanvasFrameNode = React.memo(function CanvasFrameNode({
             className={`absolute z-0 select-none${folder && collapsed ? " canvas-folder-node" : ""} ${dragOffset ? "cursor-grabbing" : "cursor-default"}`}
             style={{ transform: `translate(${data.position.x + (dragOffset?.x || 0)}px, ${data.position.y + (dragOffset?.y || 0)}px)`, width: data.width, height: data.height, contain: "layout style" }}
             onMouseDown={(event) => onMouseDown(event, data.id)}
+            onPointerDown={(event) => {
+                if (readOnly || event.pointerType !== "touch" || !event.isPrimary) return;
+                if ((event.target as Element).closest('button,input,textarea,select,a,video,audio,[contenteditable="true"],[data-canvas-no-zoom]')) return;
+                event.preventDefault();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                onMouseDown(event, data.id);
+            }}
             onDoubleClick={(event) => {
                 if (!collapsed || (event.target instanceof Element && event.target.closest("button,input"))) return;
                 event.stopPropagation();

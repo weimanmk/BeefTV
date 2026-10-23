@@ -10,7 +10,7 @@ const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 export function distributionNotices({ root = repo, version, platform = "web", heavyMedia = true, sourcesDir = resolve(root, "dist") }) {
     if (!/^v?\d+\.\d+\.\d+(?:[.-][\w.-]+)?$/.test(version)) throw new Error("Invalid distribution version");
     version = `v${version.replace(/^v/, "")}`;
-    if (!["web", "darwin-arm64", "darwin-amd64", "windows-amd64", "linux-amd64"].includes(platform)) throw new Error("Invalid distribution platform");
+    if (!["web", "android", "darwin-arm64", "darwin-amd64", "windows-amd64", "linux-amd64"].includes(platform)) throw new Error("Invalid distribution platform");
     const files = new Map();
     for (const name of ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]) files.set(name, readFileSync(resolve(root, name)));
     for (const name of ["GPL-2.0.txt", "GPL-3.0.txt", "LGPL-2.1.txt"]) files.set(name, readFileSync(resolve(root, "licenses", name)));

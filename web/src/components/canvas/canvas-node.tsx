@@ -349,6 +349,13 @@ export const CanvasNode = React.memo(function CanvasNode({
                 onHoverEnd(data.id);
             }}
             onContextMenu={(event) => onContextMenu(event, data.id)}
+            onPointerDown={(event) => {
+                if (readOnly || event.pointerType !== "touch" || !event.isPrimary) return;
+                if ((event.target as Element).closest('button,input,textarea,select,a,video,audio,[contenteditable="true"],[data-canvas-no-zoom]')) return;
+                event.preventDefault();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                onMouseDown(event, data.id);
+            }}
         >
             {!data.metadata?.reusableWorkflow ? <NodeExternalHeader
                 node={data}
