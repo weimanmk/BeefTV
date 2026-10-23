@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { ChevronDown, ChevronRight, Video } from "lucide-react";
 
 import { CometCard } from "@/components/ui/aceternity/comet-card";
@@ -55,6 +55,7 @@ export const CanvasFrameNode = React.memo(function CanvasFrameNode({
     const resizeRef = useRef({
         active: false,
         corner: "bottom-right" as ResizeCorner,
+        pointerId: -1,
         startX: 0,
         startY: 0,
         startLeft: 0,
@@ -86,9 +87,9 @@ export const CanvasFrameNode = React.memo(function CanvasFrameNode({
     }, [childNodes]);
 
     const handleResizeMove = useCallback(
-        (event: MouseEvent) => {
+        (event: PointerEvent) => {
             const state = resizeRef.current;
-            if (!state.active) return;
+            if (!state.active || event.pointerId !== state.pointerId) return;
             const dx = (event.clientX - state.startX) / state.scale;
             const dy = (event.clientY - state.startY) / state.scale;
             const fromLeft = state.corner.includes("left");
@@ -111,25 +112,31 @@ export const CanvasFrameNode = React.memo(function CanvasFrameNode({
         [],
     );
 
-    const handleResizeUp = useCallback(() => {
+    const handleResizeUp = useCallback((event: PointerEvent) => {
+        if (event.pointerId !== resizeRef.current.pointerId) return;
         resizeRef.current.active = false;
-        window.removeEventListener("mousemove", handleResizeMove);
-        window.removeEventListener("mouseup", handleResizeUp);
+        window.removeEventListener("pointermove", handleResizeMove);
+        window.removeEventListener("pointerup", handleResizeUp);
+        window.removeEventListener("pointercancel", handleResizeUp);
     }, [handleResizeMove]);
 
     useEffect(
         () => () => {
-            window.removeEventListener("mousemove", handleResizeMove);
-            window.removeEventListener("mouseup", handleResizeUp);
+            window.removeEventListener("pointermove", handleResizeMove);
+            window.removeEventListener("pointerup", handleResizeUp);
+        window.removeEventListener("pointercancel", handleResizeUp);
         },
         [handleResizeMove, handleResizeUp],
     );
 
-    const startResize = (event: ReactMouseEvent, corner: ResizeCorner) => {
+    const startResize = (event: ReactPointerEvent, corner: ResizeCorner) => {
+        if (!event.isPrimary || event.button !== 0) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
         event.preventDefault();
         event.stopPropagation();
         resizeRef.current = {
             active: true,
+            pointerId: event.pointerId,
             corner,
             startX: event.clientX,
             startY: event.clientY,
@@ -142,8 +149,9 @@ export const CanvasFrameNode = React.memo(function CanvasFrameNode({
             childBounds,
             onResize,
         };
-        window.addEventListener("mousemove", handleResizeMove);
-        window.addEventListener("mouseup", handleResizeUp);
+        window.addEventListener("pointermove", handleResizeMove);
+        window.addEventListener("pointerup", handleResizeUp);
+        window.addEventListener("pointercancel", handleResizeUp);
     };
 
     const active = isSelected || isDropTarget;
@@ -363,7 +371,7 @@ function FramePreview({ nodes, frame, theme }: { nodes: CanvasNodeData[]; frame:
     );
 }
 
-function ResizeHandle({ corner, scale, theme, onMouseDown }: { corner: ResizeCorner; scale: number; theme: CanvasTheme; onMouseDown: (event: ReactMouseEvent, corner: ResizeCorner) => void }) {
+function ResizeHandle({ corner, scale, theme, onMouseDown }: { corner: ResizeCorner; scale: number; theme: CanvasTheme; onMouseDown: (event: ReactPointerEvent, corner: ResizeCorner) => void }) {
     const inverseScale = 1 / Math.max(scale, 0.05);
     const size = 14 * inverseScale;
     const offset = -size / 2;
@@ -384,10 +392,13 @@ function ResizeHandle({ corner, scale, theme, onMouseDown }: { corner: ResizeCor
                 width: size,
                 height: size,
                 cursor,
+                touchAction: "none",
                 background: theme.frame.activeStroke,
                 border: `${2 * inverseScale}px solid ${theme.canvas.background}`,
             }}
-            onMouseDown={(event) => onMouseDown(event, corner)}
+            data-canvas-resize-handle={corner}
+            onPointerDown={(event) => onMouseDown(event, corner)}
         />
     );
 }
+

@@ -164,6 +164,7 @@ export const CanvasNode = React.memo(function CanvasNode({
     const resizeRef = useRef({
         isResizing: false,
         corner: "bottom-right" as ResizeCorner,
+        pointerId: -1,
         startX: 0,
         startY: 0,
         startLeft: 0,
@@ -210,8 +211,8 @@ export const CanvasNode = React.memo(function CanvasNode({
     }, [isEditingContent]);
 
     const handleResizeMove = useCallback(
-        (event: MouseEvent) => {
-            if (!resizeRef.current.isResizing) return;
+        (event: PointerEvent) => {
+            if (!resizeRef.current.isResizing || event.pointerId !== resizeRef.current.pointerId) return;
 
             const dx = (event.clientX - resizeRef.current.startX) / scale;
             const dy = (event.clientY - resizeRef.current.startY) / scale;
@@ -252,17 +253,22 @@ export const CanvasNode = React.memo(function CanvasNode({
         [data.id, data.type, onResize, scale, scriptMinHeight],
     );
 
-    const handleResizeUp = useCallback(() => {
+    const handleResizeUp = useCallback((event: PointerEvent) => {
+        if (event.pointerId !== resizeRef.current.pointerId) return;
         resizeRef.current.isResizing = false;
-        window.removeEventListener("mousemove", handleResizeMove);
-        window.removeEventListener("mouseup", handleResizeUp);
+        window.removeEventListener("pointermove", handleResizeMove);
+        window.removeEventListener("pointerup", handleResizeUp);
+        window.removeEventListener("pointercancel", handleResizeUp);
     }, [handleResizeMove]);
 
-    const handleResizeMouseDown = (event: React.MouseEvent, corner: ResizeCorner) => {
+    const handleResizeMouseDown = (event: React.PointerEvent, corner: ResizeCorner) => {
+        if (!event.isPrimary || event.button !== 0) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
         event.stopPropagation();
         event.preventDefault();
         resizeRef.current = {
             isResizing: true,
+            pointerId: event.pointerId,
             corner,
             startX: event.clientX,
             startY: event.clientY,
@@ -273,14 +279,16 @@ export const CanvasNode = React.memo(function CanvasNode({
             keepRatio: shouldKeepAspectRatio(data),
             ratio: (data.metadata?.naturalWidth || data.width) / (data.metadata?.naturalHeight || data.height || 1),
         };
-        window.addEventListener("mousemove", handleResizeMove);
-        window.addEventListener("mouseup", handleResizeUp);
+        window.addEventListener("pointermove", handleResizeMove);
+        window.addEventListener("pointerup", handleResizeUp);
+        window.addEventListener("pointercancel", handleResizeUp);
     };
 
     useEffect(() => {
         return () => {
-            window.removeEventListener("mousemove", handleResizeMove);
-            window.removeEventListener("mouseup", handleResizeUp);
+            window.removeEventListener("pointermove", handleResizeMove);
+            window.removeEventListener("pointerup", handleResizeUp);
+        window.removeEventListener("pointercancel", handleResizeUp);
         };
     }, [handleResizeMove, handleResizeUp]);
 
@@ -575,10 +583,10 @@ export const CanvasNode = React.memo(function CanvasNode({
                     </div>
                 ) : null}
                 {!readOnly && !data.metadata?.locked && (isSelected || hovered) ? <>
-                    <ResizeHandle corner="top-left" onMouseDown={handleResizeMouseDown} />
-                    <ResizeHandle corner="top-right" onMouseDown={handleResizeMouseDown} />
-                    <ResizeHandle corner="bottom-left" onMouseDown={handleResizeMouseDown} />
-                    <ResizeHandle corner="bottom-right" onMouseDown={handleResizeMouseDown} />
+                    <ResizeHandle corner="top-left" scale={scale} onMouseDown={handleResizeMouseDown} />
+                    <ResizeHandle corner="top-right" scale={scale} onMouseDown={handleResizeMouseDown} />
+                    <ResizeHandle corner="bottom-left" scale={scale} onMouseDown={handleResizeMouseDown} />
+                    <ResizeHandle corner="bottom-right" scale={scale} onMouseDown={handleResizeMouseDown} />
                 </> : null}
             </div>
 
@@ -701,7 +709,7 @@ function BatchChildActionButton({ theme, label, icon, onClick, danger = false }:
     );
 }
 
-function ResizeHandle({ corner, onMouseDown }: { corner: ResizeCorner; onMouseDown: (event: React.MouseEvent, corner: ResizeCorner) => void }) {
+function ResizeHandle({ corner, scale, onMouseDown }: { corner: ResizeCorner; scale: number; onMouseDown: (event: React.PointerEvent, corner: ResizeCorner) => void }) {
     const positionClass = {
         "top-left": "-left-[14px] -top-[14px] cursor-nwse-resize",
         "top-right": "-right-[14px] -top-[14px] cursor-nesw-resize",
@@ -709,7 +717,7 @@ function ResizeHandle({ corner, onMouseDown }: { corner: ResizeCorner; onMouseDo
         "bottom-right": "-bottom-[14px] -right-[14px] cursor-nwse-resize",
     }[corner];
 
-    return <div className={`absolute z-[var(--node-z-handle)] size-7 ${positionClass}`} onMouseDown={(event) => onMouseDown(event, corner)} />;
+    return <div data-canvas-resize-handle={corner} style={{ transform: `scale(${Math.max(1, 1 / Math.max(scale, 0.05))})` }} className={`absolute z-[var(--node-z-handle)] size-7 touch-none ${positionClass}`} onPointerDown={(event) => onMouseDown(event, corner)} />;
 }
 
 function NodeExternalHeader({ node, scale, dimensionLabel, active, editable, editing, draft, theme, onDragStart, onDraftChange, onEdit, onCommit, onCancel }: {
@@ -951,3 +959,4 @@ function ConnectionSideRail({ side, scale, theme, visible = false, onPointerDown
         </button>
     );
 }
+

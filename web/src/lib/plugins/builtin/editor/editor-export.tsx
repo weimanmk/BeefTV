@@ -2,6 +2,8 @@
 // 缺源阻止完整成片导出；规划错误在面板呈现，不中断编辑器。
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { isAndroidMobile } from "@/lib/mobile-platform";
+import { saveOwnedOrBrowserBlob } from "@/services/desktop-media-save";
 import { Download, Loader2, PackageOpen, Server } from "lucide-react";
 
 import { useEditorHostContext, useEditorStoreContext } from "@/components/editor/editor-context";
@@ -195,13 +197,9 @@ export function EditorExport() {
                 onProgress: (p: TimelineExportProgress) =>
                     setState({ phase: "running", mode: "local", percent: p.percent, detail: p.detail, result: null }),
             });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "timeline-export.mp4";
-            a.click();
-            window.setTimeout(() => URL.revokeObjectURL(url), 40_000);
-            setState({ phase: "done", mode: "local", percent: 100, detail: "导出完成，已开始下载", result: null });
+            setState({ phase: "running", mode: "local", percent: 100, detail: "请选择保存位置", result: null });
+            const saved = await saveOwnedOrBrowserBlob("timeline-export.mp4", blob);
+            setState({ phase: "done", mode: "local", percent: 100, detail: saved === "cancelled" ? "已取消保存" : "文件已保存", result: null });
         } catch (error) {
             setState({
                 phase: "error",
@@ -250,7 +248,7 @@ export function EditorExport() {
                     <span className="tabular-nums text-[var(--director-dock-fg)]/80">{sources.length} 个</span>
                 </div>
 
-                <button
+                {!isAndroidMobile && <button
                     type="button"
                     onClick={renderRemote}
                     disabled={sources.length === 0 || state.phase === "running"}
@@ -262,7 +260,7 @@ export function EditorExport() {
                         <Server className="size-3.5" />
                     )}
                     {state.phase === "running" && state.mode === "remote" ? "渲染中…" : "渲染成片（服务端）"}
-                </button>
+                </button>}
 
                 <button
                     type="button"
@@ -316,7 +314,7 @@ export function EditorExport() {
                 {state.phase === "error" && <p className="mt-2 text-[11px] text-[var(--director-danger)]">{state.detail}</p>}
 
                 <p className="mt-3 text-[11px] leading-relaxed text-[var(--director-dock-fg)]/55">
-                    默认提交服务端渲染任务（异步，产物可直接预览/下载）；本地 ffmpeg.wasm 导出保留为离线兜底。
+                    {isAndroidMobile ? "手机端使用内置 ffmpeg.wasm 导出，请保持应用在前台，保存后才显示完成。" : "默认提交服务端渲染任务（异步，产物可直接预览/下载）；本地 ffmpeg.wasm 导出保留为离线兜底。"}
                 </p>
                 {sources.length === 0 && (
                     <p className="mt-1 text-[11px] text-[var(--director-dock-fg)]/55">请补齐缺失媒体后再导出完整成片。</p>
@@ -325,3 +323,4 @@ export function EditorExport() {
         </div>
     );
 }
+

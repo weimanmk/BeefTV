@@ -6,11 +6,12 @@ android {
         applicationId 'com.weimanmk.beeftv.mobile'
         minSdk 26
         targetSdk 35
-        versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
-        versionName '0.1.4-mobile'
+        versionCode 20000 + Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+        versionName '0.1.5-mobile'
         testInstrumentationRunner 'com.weimanmk.beeftv.MobileSmoke'
         ndk { abiFilters 'arm64-v8a', 'x86_64' }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     packaging { jniLibs { useLegacyPackaging = false } }
 }
+

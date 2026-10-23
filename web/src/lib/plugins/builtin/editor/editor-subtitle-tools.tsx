@@ -3,6 +3,7 @@
 // 时间线字幕片段是节点字幕的只读快照；AI 高亮只写权威节点字幕。
 // 当前预览不渲染字幕高亮，因此本工具不重复发起 AI 请求，避免产生两份互相漂移的结果。
 
+import { saveOwnedOrBrowserBlob } from "@/services/desktop-media-save";
 import { useMemo, useState } from "react";
 
 import { useEditorStoreContext } from "@/components/editor/editor-context";
@@ -40,7 +41,7 @@ export function EditorSubtitleTools() {
     };
 
     // SRT 导出：当前时间线字幕快照 → 序列化 → 下载 .srt（往返一致）。
-    const exportSrt = () => {
+    const exportSrt = async () => {
         if (subtitleClips.length === 0) {
             setMessage("时间线上没有字幕片段");
             return;
@@ -53,13 +54,11 @@ export function EditorSubtitleTools() {
         }));
         const content = serializeSrtEntries(entries);
         const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "subtitles.srt";
-        a.click();
-        window.setTimeout(() => URL.revokeObjectURL(url), 40_000);
-        setMessage(`已导出 ${entries.length} 条字幕`);
+        try {
+            setMessage("请选择保存位置");
+            const result = await saveOwnedOrBrowserBlob("subtitles.srt", blob);
+            setMessage(result === "cancelled" ? "已取消保存" : `已保存 ${entries.length} 条字幕`);
+        } catch (error) { setMessage(error instanceof Error ? error.message : "字幕保存失败"); }
     };
 
     return (
@@ -142,3 +141,4 @@ function SubtitleRow({ clip }: { clip: TimelineClip }) {
         </li>
     );
 }
+

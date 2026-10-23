@@ -8,7 +8,7 @@ bun install --frozen-lockfile
 for suite in canvas-archive-restore canvas-history-restore canvas-version-history export-integrity manual-channel-protocol canvas-pointer-chrome; do
     bun test "test/$suite.test.ts"
 done
-BEEFTV_FULL_MEDIA_RESOURCES=0 BEEFTV_DIST_PLATFORM=android bun run build:slim
+CANVAS_BUILD_VERSION=0.1.5-mobile BEEFTV_FULL_MEDIA_RESOURCES=1 BEEFTV_DIST_PLATFORM=android bun run build:full
 cd "$ROOT"
 sh plugin-packages/build-packages.sh
 cp plugin-packages/*.beeftv-plugin backend/cmd/mobile/officialplugins/
@@ -24,4 +24,5 @@ for target in arm64-v8a:arm64:aarch64 x86_64:amd64:x86_64; do
         go build -buildmode=c-shared -trimpath -ldflags='-s -w' -o "$OUTPUT/libbeeftv.so" ./cmd/mobile
 done
 cd "$ROOT/android"
-gradle --no-daemon assembleDebug assembleDebugAndroidTest
+gradle --no-daemon assembleDebug assembleDebugAndroidTest assembleRelease
+

@@ -4,9 +4,11 @@
 
 ## 打包和安装
 
-GitHub Actions → **Android APK** → 最新成功运行 → **BeefTV-Mobile-APK**，解压后安装 `app-debug.apk`。
-也可以在 `android-mobile` 分支手动运行工作流。产物是用于侧载测试的 debug 签名 APK，不是应用商店正式发行版。
-未配置持久发布签名，不同 runner 构建可能需要卸载旧版才能安装；卸载会删除手机工作区，先导出项目。
+GitHub Actions → **Android APK** → **BeefTV-Mobile-Release**。配置持久签名后安装 `BeefTV-Mobile.apk`；`app-release-unsigned.apk` 未签名，不能直接安装。**BeefTV-Mobile-APK** 中的 debug APK 仅用于 CI 冒烟，不用于长期升级。
+
+在仓库 Actions Secrets 配置 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`、`ANDROID_SIGNING_CERT_SHA256`。工作流使用同一密钥并校验 SHA256；密钥或指纹错误会失败。私钥必须单独备份，绝不能提交到仓库。固定包名和递增 versionCode 用于后续覆盖升级。
+
+0.1.4 及更早版本使用临时 runner debug 密钥，无法恢复其私钥；新签名不能覆盖那些旧签名。迁移前先导出画布和素材，验证备份可读，再安装新签名版本。固定签名只能保证使用该密钥的后续版本升级。
 
 Android 8.0 以上，支持 arm64-v8a 真机和 x86_64 模拟器。需要近期版本的 Android System WebView；推荐 Android 10 以上。
 首次打开先完成工作区初始化，再在模型渠道设置中填写自己的模型服务。仓库和 APK 均不包含用户密钥。
@@ -25,8 +27,8 @@ WebView 的明文 HTTP 仅放行回环地址。后端模型中转沿用原项目
 
 - 复用原有窄屏导航和画布触控缩放；接入系统文件选择、原文件下载、返回键、视频全屏及屏幕安全区域。
 - 原桌面 Node 助手宿主、外部插件可执行程序、原生 FFmpeg/ffprobe、深度采集和本机桌面集成尚未移植。这些功能不能按桌面版验收。
-- 精简资源构建不打包重型 WASM / 3D 资源；视频转码、时间线渲染和相关工具不可用。
-- Blob 导出分块写入私有临时文件，再通过系统文件对话框保存，不再限制 32MB。需要足够可用空间；取消保存后清理临时文件。
+- 0.1.5 改为完整媒体资源构建，打包浏览器 FFmpeg、人脸识别和 3D 资源；手机时间线使用浏览器 FFmpeg，隐藏无法执行的原生服务端渲染入口。资源包含不等于所有设备性能验收通过。
+- 导出文件通过认证的本地 handoff 暂存，原始文件名独立传递，交给系统文件对话框。写入并关闭目标流后才回报 saved；取消回报 cancelled，失败回报 failed。完成后清理 handoff 文件；视频导出需额外临时空间。
 - 麦克风录音使用 Android 运行时授权，仅向本地工作区开放。相机直拍未接入，素材通过系统文件选择器导入；扩展名筛选会转成系统支持的 MIME 类型。
 - 手机构建不默认打开桌面 Agent，画布隐藏其入口；设置页显示当前手机能力边界。
 - 对话 Markdown、分镜素材和字幕下载延迟回收 Blob 地址，给 Android 下载回调留出读取时间。
@@ -53,3 +55,10 @@ native 库使用 16KB ELF 对齐。`android/app/src/main/jniLibs`、Gradle 缓�
 APK 使用 sensorLandscape，允许两个横屏方向。手机菜单使用独立 Drawer，不再被页面裁切，且不继承桌面折叠状态。模型服务弹窗使用单一滚动容器，低高度下可滚动访问输入框和操作按钮。小于 1024px 的导演台默认收起场景面板，属性面板通过顶部“场景属性”按钮浮层打开，左侧工具栏支持滚动。
 
 Android 冒烟测试新增横屏方向、菜单展开/关闭/导航、模型表单滚动可达、导演台视口尺寸和面板切换检查与截图；不调用付费模型服务。
+
+### 0.1.5 同步与回归范围
+
+合入 fork main 的 v2.0.3 超分超时与错误分类修复。手机设置提供紧凑/舒适密度，默认 13px 根字号和 30px 常规 AntD 控件；桌面尺寸保持原值。画布百分比仍表示真实画布比例，不伪造 100%。节点和背板尺寸手柄使用 Pointer Events、pointer capture 和 pointercancel，兼容触摸与鼠标。
+
+新增无付费模型的 desktop / Android touch Chromium 组件回归和 Go 文件名、字节、权限、取消/保存回执测试。自动化浏览器测试不能替代 Windows/macOS 安装版或 Android 真机验收。此前 Android CI 模拟器出现离线，原有 smoke job 保留诊断；未取得通过证据前不能写成实机回归完成。
+

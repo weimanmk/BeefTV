@@ -1,3 +1,5 @@
+import { isAndroidMobile } from "@/lib/mobile-platform";
+import { saveMobileExport } from "@/services/api/mobile-exports";
 import { saveAs } from "file-saver";
 import { nanoid } from "nanoid";
 
@@ -16,6 +18,13 @@ export function isWailsNativeShell() {
 
 export async function downloadOwnedOrBrowserMedia(options: { fileName: string; resourceId?: string; browserUrl?: string }): Promise<OwnedMediaSaveResult> {
     const fileName = sanitizeDownloadFileName(options.fileName);
+    if (isAndroidMobile) {
+        if (options.resourceId) return saveMobileExport(fileName, { resourceId: options.resourceId });
+        if (!options.browserUrl) throw new Error("没有可导出的文件");
+        const response = await fetch(options.browserUrl);
+        if (!response.ok) throw new Error("读取导出文件失败");
+        return saveMobileExport(fileName, await response.blob());
+    }
     if (isWailsNativeShell()) {
         const resourceId = options.resourceId?.trim();
         if (!resourceId) throw new Error("没有可导出的本机文件");
@@ -32,6 +41,7 @@ export async function downloadOwnedOrBrowserMedia(options: { fileName: string; r
 
 export async function saveOwnedOrBrowserBlob(fileName: string, blob: Blob): Promise<OwnedMediaSaveResult> {
     const name = sanitizeDownloadFileName(fileName, "未命名导出");
+    if (isAndroidMobile) return saveMobileExport(name, blob);
     if (isWailsNativeShell()) {
         if (blob.size > MAX_OWNED_ARTIFACT_BYTES) throw new Error("导出包太大，请减少所选内容后再导出");
         const save = window.go?.main?.DesktopApp?.SaveOwnedArtifact;
@@ -107,3 +117,4 @@ export function reportOwnedMediaSave(message: { success: (text: string) => void;
             message.error(error instanceof Error && error.message.trim() ? error.message : "保存没有完成，请再试一次");
         });
 }
+

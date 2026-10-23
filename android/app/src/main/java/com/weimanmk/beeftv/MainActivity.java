@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
     private final Runnable browserPoll = () -> pollBrowserRequest();
     private ValueCallback<Uri[]> fileCallback;
     private String pendingURL;
+    private String pendingExportId;
     private java.io.File pendingFile;
     private PermissionRequest microphoneRequest;
     private View fullscreen;
@@ -111,8 +112,10 @@ public class MainActivity extends Activity {
         if (!resumed || isDestroyed()) return;
         if (baseURL == null || browserPollInFlight) { browserHandler.postDelayed(browserPoll, 1000); return; }
         browserPollInFlight = true;
+        final boolean canExport = pendingURL == null && pendingFile == null && pendingExportId == null;
         WORKER.execute(() -> {
             String target = "";
+            JSONObject exportJob = null;
             HttpURLConnection connection = null;
             try {
                 connection = (HttpURLConnection)new URL(baseURL + "/api/mobile/browser-request").openConnection();
@@ -131,16 +134,64 @@ public class MainActivity extends Activity {
                 }
             } catch (Exception ignored) { }
             finally { if (connection != null) connection.disconnect(); }
+            if (canExport && target.isEmpty()) {
+                try { exportJob = mobileRequest("/api/mobile/exports/next", null).optJSONObject("data"); }
+                catch (Exception ignored) { }
+            }
+            final JSONObject job = exportJob;
             final String pending = target;
             runOnUiThread(() -> {
                 browserPollInFlight = false;
-                if (isDestroyed()) return;
+                if (isDestroyed()) { if (job != null) finishExport(job.optString("id"), "failed"); return; }
+                if (job != null) {
+                    pendingExportId = job.optString("id");
+                    pendingURL = baseURL + "/api/mobile/exports/" + pendingExportId + "/file";
+                    chooseSave(job.optString("fileName", "BeefTV-export"), job.optString("mime"));
+                }
                 if (!pending.isEmpty()) {
                     if (resumed) openAccountBrowser(pending);
                     else accountBrowserTarget = pending;
                 }
                 if (resumed) browserHandler.postDelayed(browserPoll, 1000);
             });
+        });
+    }
+
+
+    private JSONObject mobileRequest(String path, String state) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection)new URL(baseURL + path).openConnection();
+        try {
+            connection.setInstanceFollowRedirects(false);
+            connection.setRequestProperty("Cookie", sessionCookie);
+            connection.setConnectTimeout(5000); connection.setReadTimeout(10000);
+            if (state != null) {
+                connection.setRequestMethod("POST");
+                connection.setDoOutput(true);
+                connection.setRequestProperty("Content-Type", "application/json");
+                byte[] body = new JSONObject().put("state", state).toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                try (OutputStream output = connection.getOutputStream()) { output.write(body); }
+            }
+            if (connection.getResponseCode() != 200) throw new java.io.IOException("导出回执失败");
+            try (InputStream input = connection.getInputStream()) {
+                java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[4096]; int count;
+                while ((count = input.read(buffer)) != -1) {
+                    if (output.size() + count > 16384) throw new java.io.IOException("导出回执过大");
+                    output.write(buffer, 0, count);
+                }
+                return new JSONObject(output.toString("UTF-8"));
+            }
+        } finally { connection.disconnect(); }
+    }
+
+    private void finishExport(String id, String state) {
+        if (id == null || id.isEmpty()) return;
+        WORKER.execute(() -> {
+            for (int attempt = 0; attempt < 3; attempt++) {
+                try { mobileRequest("/api/mobile/exports/" + id + "/complete", state); return; }
+                catch (Exception ignored) { }
+            }
+            runOnUiThread(() -> toast("保存结果回执失败，请检查目标文件后重启应用"));
         });
     }
 
@@ -319,7 +370,7 @@ public class MainActivity extends Activity {
         Intent save = new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
             .setType(mime == null || mime.isEmpty() ? "application/octet-stream" : mime).putExtra(Intent.EXTRA_TITLE, name);
         try { startActivityForResult(save, 11); }
-        catch (ActivityNotFoundException failure) { pendingURL = null; clearPendingFile(); toast("系统没有可用的文件保存工具"); }
+        catch (ActivityNotFoundException failure) { finishExport(pendingExportId, "failed"); pendingExportId = null; pendingURL = null; clearPendingFile(); toast("系统没有可用的文件保存工具"); }
     }
 
     @Override protected void onActivityResult(int request, int result, Intent data) {
@@ -328,12 +379,14 @@ public class MainActivity extends Activity {
             ValueCallback<Uri[]> callback = fileCallback; fileCallback = null;
             callback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result, data));
         } else if (request == 11) {
-            String source = pendingURL; java.io.File file = pendingFile; pendingURL = null; pendingFile = null;
-            if (result != RESULT_OK || data == null || data.getData() == null) { if (file != null) file.delete(); return; }
+            String source = pendingURL; java.io.File file = pendingFile; String exportId = pendingExportId;
+            pendingURL = null; pendingFile = null; pendingExportId = null;
+            if (result != RESULT_OK || data == null || data.getData() == null) { if (file != null) file.delete(); finishExport(exportId, "cancelled"); return; }
             Uri destination = data.getData();
             WORKER.execute(() -> {
                 HttpURLConnection connection = null;
-                try (OutputStream output = getContentResolver().openOutputStream(destination)) {
+                try {
+                  try (OutputStream output = getContentResolver().openOutputStream(destination)) {
                     if (output == null) throw new java.io.IOException("无法写入目标文件");
                     if (file != null) {
                         try (InputStream input = new java.io.FileInputStream(file)) {
@@ -352,8 +405,11 @@ public class MainActivity extends Activity {
                             while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
                         }
                     }
+                    output.flush();
+                  }
+                    finishExport(exportId, "saved");
                     runOnUiThread(() -> toast("已保存文件"));
-                } catch (Exception failure) { runOnUiThread(() -> toast("保存失败：" + failure.getMessage())); }
+                } catch (Exception failure) { finishExport(exportId, "failed"); runOnUiThread(() -> toast("保存失败：" + failure.getMessage())); }
                 finally { if (connection != null) connection.disconnect(); if (file != null) file.delete(); }
             });
         }
@@ -375,6 +431,7 @@ public class MainActivity extends Activity {
         browserHandler.removeCallbacksAndMessages(null);
         if (fileCallback != null) { fileCallback.onReceiveValue(null); fileCallback = null; }
         if (microphoneRequest != null) { microphoneRequest.deny(); microphoneRequest = null; }
+        finishExport(pendingExportId, "failed"); pendingExportId = null;
         clearPendingFile();
         if (web != null) { root.removeView(web); web.destroy(); web = null; }
         // The Go singleton survives orientation/activity recreation. Android closes
@@ -382,3 +439,4 @@ public class MainActivity extends Activity {
         super.onDestroy();
     }
 }
+

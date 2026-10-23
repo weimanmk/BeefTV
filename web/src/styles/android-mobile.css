@@ -1,0 +1,19 @@
+/* Mobile density changes control sizing, never canvas coordinate transforms. */
+html[data-beeftv-platform="android"][data-mobile-density="compact"] {
+    font-size: 13px;
+    --mobile-control-height: 30px;
+}
+html[data-beeftv-platform="android"][data-mobile-density="comfortable"] {
+    font-size: 16px;
+    --mobile-control-height: 36px;
+}
+html[data-beeftv-platform="android"] :is(button, [role="button"]) { -webkit-tap-highlight-color: transparent; }
+html[data-beeftv-platform="android"][data-mobile-density="compact"] .app-section-page-header { padding-block: 10px; }
+html[data-beeftv-platform="android"][data-mobile-density="compact"] .model-service-header { padding: 12px 18px; }
+html[data-beeftv-platform="android"][data-mobile-density="compact"] .model-service-header h2 { font-size: 18px; }
+html[data-beeftv-platform="android"][data-mobile-density="compact"] .model-service-fields { padding: 14px 18px; }
+html[data-beeftv-platform="android"][data-mobile-density="compact"] .model-service-footer { padding: 10px 18px; }
+html[data-beeftv-platform="android"][data-mobile-density="compact"] .model-service-steps { margin-top: 8px; }
+html[data-beeftv-platform="android"][data-mobile-density="compact"] .model-service-provider { padding: 9px; }
+html[data-beeftv-platform="android"] [data-canvas-resize-handle] { touch-action: none; }
+

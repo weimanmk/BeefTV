@@ -1,5 +1,5 @@
-import { Alert, App, Button } from "antd";
-import { isAndroidMobile } from "@/lib/mobile-platform";
+import { Alert, App, Button, Segmented } from "antd";
+import { isAndroidMobile, readMobileDensity, applyMobileDensity, type MobileDensity } from "@/lib/mobile-platform";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -23,6 +23,7 @@ export function isConfigSection(value: string | null): value is ConfigSectionKey
 
 export default function SettingsPage() {
     const { message } = App.useApp();
+    const [mobileDensity, setMobileDensity] = useState<MobileDensity>(readMobileDensity);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const requestedSection = searchParams.get("section");
@@ -71,7 +72,8 @@ export default function SettingsPage() {
     const panes: Record<Exclude<ConfigSectionKey, "diagnostics">, ReactNode> = {
         channels: (
             <SettingsPane>
-                {isAndroidMobile ? <Alert type="info" showIcon title="手机工作区" description="画布、素材和模型渠道保存在本机。模型生成需要配置可用渠道，建议使用 HTTPS；切到后台可能中断任务。桌面 Agent、FFmpeg 时间线导出、深度捕捉和桌面插件暂不支持。卸载前请导出画布与素材。" /> : null}
+                {isAndroidMobile ? <Alert type="info" showIcon title="手机工作区" description="画布、素材和模型渠道保存在本机。模型生成需要配置可用渠道，建议使用 HTTPS；切到后台可能中断任务。已包含本地视频处理和人脸识别资源。桌面 Agent、原生深度运行时和桌面专用插件仍不可用。卸载前请导出画布与素材。" /> : null}
+                {isAndroidMobile && <div className="my-3 flex items-center gap-3"><span>界面密度</span><Segmented aria-label="手机界面密度" value={mobileDensity} options={[{ label: "紧凑", value: "compact" }, { label: "舒适", value: "comfortable" }]} onChange={(value) => { const density = value as MobileDensity; applyMobileDensity(density); setMobileDensity(density); }} /></div>}
                 <ChannelSettingsPane onOpenDiagnostics={() => selectSection("diagnostics")} />
                 <div className="settings-section model-default-section">
                     <div className="settings-pane-header">
@@ -143,3 +145,4 @@ export default function SettingsPage() {
 function SettingsPane({ children, fill = false }: { children: ReactNode; fill?: boolean }) {
     return <div className={fill ? "settings-pane h-full" : "settings-pane"}>{children}</div>;
 }
+

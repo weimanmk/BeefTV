@@ -1,3 +1,4 @@
+import { isAndroidMobile } from "@/lib/mobile-platform";
 import type { ThemeConfig } from "antd";
 import { theme as antdTheme } from "antd";
 
@@ -185,9 +186,9 @@ export function getAntThemeConfig(dark: boolean, skinID: unknown = "classic"): T
             borderRadiusLG: skin.borderRadiusLG || 8,
             borderRadiusSM: skin.borderRadiusSM || 5,
             lineWidth: skin.borderWidth || 1,
-            controlHeight: skin.controlHeight || 36,
-            controlHeightLG: skin.controlHeightLarge || 42,
-            controlHeightSM: skin.controlHeightSmall || 30,
+            controlHeight: isAndroidMobile ? 30 : skin.controlHeight || 36,
+            controlHeightLG: isAndroidMobile ? 34 : skin.controlHeightLarge || 42,
+            controlHeightSM: isAndroidMobile ? 28 : skin.controlHeightSmall || 30,
             fontSize: 13,
             fontSizeSM: 12,
             motionDurationFast: `${skin.motionFast ?? 120}ms`,
@@ -387,7 +388,7 @@ export function getWorkspaceAntThemeConfig(): ThemeConfig {
     return {
         token: {
             borderRadius: 12, borderRadiusLG: 16, borderRadiusSM: 8,
-            controlHeight: 38, controlHeightSM: 30, controlHeightLG: 44,
+            controlHeight: isAndroidMobile ? 30 : 38, controlHeightSM: isAndroidMobile ? 28 : 30, controlHeightLG: isAndroidMobile ? 34 : 44,
             motionDurationFast: "0.12s", motionDurationMid: "0.18s", motionDurationSlow: "0.36s",
             motionEaseInOut: "cubic-bezier(0.16, 1, 0.3, 1)",
             motionEaseOut: "cubic-bezier(0.16, 1, 0.3, 1)",
@@ -469,3 +470,4 @@ export function getAdminAntThemeConfig(dark: boolean, skinID: unknown = "classic
         },
     };
 }
+

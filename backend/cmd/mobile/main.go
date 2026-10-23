@@ -66,6 +66,12 @@ func StartMobile(dataDir *C.char) *C.char {
         if _, err := rand.Read(secret); err != nil { return nil, err }
         token := hex.EncodeToString(secret)
         directory := C.GoString(dataDir)
+        temp := filepath.Join(directory, "cache", "tmp")
+        if err := os.MkdirAll(temp, 0700); err != nil { return nil, err }
+        if err := os.Setenv("TMPDIR", temp); err != nil { return nil, err }
+        var exportErr error
+        mobileExports, exportErr = newMobileExportStore(directory)
+        if exportErr != nil { return nil, exportErr }
         if err := installOfficialPlugins(directory); err != nil { return nil, err }
         ownerToken, err := agentops.EnsureOwnerToken(directory)
         if err != nil { return nil, err }
@@ -111,6 +117,7 @@ func mobileHandler(ui fs.FS, token, ownerToken string) gin.HandlerFunc {
         if c.Request.Method == http.MethodPost && mobileManualOperation(c.Request.URL.Path) {
             c.Request.Header.Set("X-Beeftv-Owner", ownerToken)
         }
+        if mobileExports != nil && mobileExports.handle(c) { c.Abort(); return }
         if c.Request.URL.Path == "/api/mobile/browser-request" {
             if c.Request.Method != http.MethodGet { c.AbortWithStatus(405); return }
             c.Header("Cache-Control", "no-store")
@@ -121,6 +128,7 @@ func mobileHandler(ui fs.FS, token, ownerToken string) gin.HandlerFunc {
         if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead { c.AbortWithStatus(405); return }
         c.Header("X-Content-Type-Options", "nosniff")
         c.Header("Cross-Origin-Opener-Policy", "same-origin")
+        c.Header("Cross-Origin-Embedder-Policy", "credentialless")
         name := strings.TrimPrefix(c.Request.URL.Path, "/")
         if name == "" { name = "index.html" }
         if info, err := fs.Stat(ui, name); err != nil || info.IsDir() {
@@ -163,3 +171,4 @@ func installOfficialPlugins(dataDir string) error {
 }
 
 func main() {}
+
