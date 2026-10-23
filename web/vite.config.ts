@@ -74,6 +74,7 @@ export default defineConfig({
         __BEEFTV_HEAVY_MEDIA_ENABLED__: JSON.stringify(heavyMediaEnabled),
         "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
         "import.meta.env.VITE_BUILD_COMMIT": JSON.stringify(buildCommit),
+        "import.meta.env.VITE_BEEFTV_PLATFORM": JSON.stringify(process.env.BEEFTV_DIST_PLATFORM || "web"),
     },
     server: {
         proxy: {

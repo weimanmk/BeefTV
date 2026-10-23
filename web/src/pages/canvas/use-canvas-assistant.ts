@@ -1,4 +1,5 @@
 import { Grid } from "antd";
+import { isAndroidMobile } from "@/lib/mobile-platform";
 import { useCallback, useEffect, useRef, useState, useMemo, useSyncExternalStore } from "react";
 
 import { createClientId } from "@/lib/client-id";
@@ -181,7 +182,7 @@ function readStoredProposals(): Set<string> {
  * 切画布不会把回复落到别的画布上。已结束的回合来自服务端历史，刷新页面不丢。
  */
 export function useCanvasAssistant({ canvasId, onCanvasChanged }: Options) {
-    const [open, setOpenState] = useState(() => scopedLocalStorage.getItem(OPEN_STORAGE_KEY) !== "0");
+    const [open, setOpenState] = useState(() => !isAndroidMobile && scopedLocalStorage.getItem(OPEN_STORAGE_KEY) !== "0");
     const [width, setWidthState] = useState(() => clampAssistantWidth(Number(scopedLocalStorage.getItem(WIDTH_STORAGE_KEY)) || ASSISTANT_DEFAULT_WIDTH));
     const [status, setStatus] = useState<AgentHostStatus | null>(null);
     const [statusBusy, setStatusBusy] = useState(false);
@@ -226,7 +227,7 @@ export function useCanvasAssistant({ canvasId, onCanvasChanged }: Options) {
         setStatus(null);
         setStatusBusy(false);
         setHandledProposals(readStoredProposals());
-        setOpenState(scopedLocalStorage.getItem(OPEN_STORAGE_KEY) !== "0");
+        setOpenState(!isAndroidMobile && scopedLocalStorage.getItem(OPEN_STORAGE_KEY) !== "0");
         setWidthState(clampAssistantWidth(Number(scopedLocalStorage.getItem(WIDTH_STORAGE_KEY)) || ASSISTANT_DEFAULT_WIDTH));
         return () => {
             for (const [key, run] of runsRef.current) {
@@ -240,6 +241,7 @@ export function useCanvasAssistant({ canvasId, onCanvasChanged }: Options) {
     }, [runPrefix]);
 
     const setOpen = useCallback((next: boolean) => {
+        if (isAndroidMobile && next) return;
         if (!userScopeMatches(expectedScope)) return;
         setOpenState(next);
         scopedLocalStorage.setItem(OPEN_STORAGE_KEY, next ? "1" : "0");

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
+import { isAndroidMobile } from "@/lib/mobile-platform";
 import { Check, ChevronDown, ChevronUp, Clapperboard, CloudUpload, Columns2, CopyPlus, Focus, FolderKanban, Gauge, History, Home, LayoutGrid, MoreHorizontal, Pencil, Plus, Redo2, Save, Search, Sparkles, Trash2, Undo2, Upload, Workflow, X } from "lucide-react";
 import { Button, Dropdown, Tooltip } from "antd";
 
@@ -346,7 +347,7 @@ export function CanvasTopBar({
 
                 <div className="canvas-topbar-cluster canvas-topbar-local-cluster pointer-events-auto hidden items-center gap-1 lg:flex" style={dockStyle}>
                     {onOpenWorkflows ? <Button type="text" className="canvas-topbar-action canvas-topbar-workflow-button !h-9 !rounded-xl !px-2.5" style={{ color: theme.node.text, background: workflowsOpen ? theme.toolbar.activeBg : undefined }} aria-pressed={workflowsOpen} icon={<Workflow className="size-4" />} onClick={onOpenWorkflows}>工作流</Button> : null}
-                    {onToggleAssistant ? (
+                    {onToggleAssistant && !isAndroidMobile ? (
                         <CanvasTopBarTooltip label="Agent（Ctrl/Cmd + J）">
                             <Button
                                 type="text"
@@ -411,7 +412,7 @@ export function CanvasTopBar({
                             </Button>
                         </CanvasTopBarTooltip>
                     ) : null}
-                    {onToggleAssistant ? (
+                    {onToggleAssistant && !isAndroidMobile ? (
                         <CanvasTopBarTooltip label="Agent（Ctrl/Cmd + J）">
                             <Button
                                 type="text"

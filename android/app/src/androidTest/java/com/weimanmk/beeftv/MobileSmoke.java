@@ -54,13 +54,155 @@ public class MobileSmoke extends Instrumentation {
                 Thread.sleep(500);
             }
             check(rendered, "SPA did not render the actual workspace");
+            verifyModelConfig(url, cookie, evidence);
+            verifyResources(activity, url, cookie, evidence);
+            verifyLibraryCRUD(url, cookie);
+            check(request(url + "/api/tasks?pageSize=10", cookie, null).getInt("code") == 0, "Task list failed");
             verifyCanvasSave(activity, url, cookie);
-            result.putString("stream", "MOBILE_SMOKE_OK: native startup, session protection, project persistence, WebView canvas commit and canvas restart persistence\n");
+            verifyHistory(activity, url, cookie);
+            verifyRoutes(activity, url);
+            verifyRecording(activity);
+            verifyBlobExport(activity);
+            result.putString("stream", "MOBILE_SMOKE_OK: startup, session, project/canvas/config/resource restart persistence, model revision conflicts, WebView multipart upload, resource bytes, folders/assets CRUD, task list, history restore, mobile routes, microphone, 34MB blob export and cancellation cleanup\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable failure) {
             result.putString("stream", "MOBILE_SMOKE_FAILED: " + failure + "\n");
             finish(Activity.RESULT_CANCELED, result);
         }
+    }
+    private void verifyModelConfig(String url, String cookie, SharedPreferences evidence) throws Exception {
+        String endpoint = url + "/api/workspace/model-config";
+        JSONObject before = data(request(endpoint, cookie, null));
+        JSONObject config = before.getJSONObject("config");
+        String previous = evidence.getString("configMarker", null);
+        if (previous != null) check(previous.equals(config.optString("systemPrompt")), "Model settings lost on restart");
+        String marker = "Android model config persistence smoke " + java.util.UUID.randomUUID();
+        config.put("systemPrompt", marker);
+        long revision = before.getLong("revision");
+        JSONObject payload = new JSONObject().put("config", config).put("expectedRevision", revision);
+        JSONObject saved = data(requestMethod(endpoint, cookie, payload.toString(), "PUT"));
+        check(saved.getLong("revision") > revision, "Model config revision did not advance");
+        config.put("systemPrompt", marker + " stale");
+        check(requestMethod(endpoint, cookie, payload.toString(), "PUT").getInt("code") == 409, "Stale model settings overwrote new settings");
+        check(marker.equals(data(request(endpoint, cookie, null)).getJSONObject("config").getString("systemPrompt")), "Model config was not persisted");
+        check(evidence.edit().putString("configMarker", marker).commit(), "Cannot record config evidence");
+    }
+    private void verifyResources(MainActivity activity, String url, String cookie, SharedPreferences evidence) throws Exception {
+        String png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=";
+        String id = evidence.getString("resource", null);
+        if (id == null) {
+            JSONObject uploaded = browserJSON(activity, "(async()=>{const bytes=Uint8Array.from(atob(" + JSONObject.quote(png) + "),c=>c.charCodeAt(0));const form=new FormData();form.append('kind','image');form.append('width','1');form.append('height','1');form.append('file',new Blob([bytes],{type:'image/png'}),'android-smoke.png');return await(await fetch('/api/resources',{method:'POST',body:form})).json()})()");
+            JSONObject resource = data(uploaded).getJSONObject("resource");
+            id = resource.getString("id");
+            check(evidence.edit().putString("resource", id).commit(), "Cannot save resource evidence");
+        }
+        check(data(request(url + "/api/resources/" + id, cookie, null)).getJSONObject("resource").getString("id").equals(id), "Resource metadata lost on restart");
+        HttpURLConnection connection = (HttpURLConnection)new URL(url + "/api/resources/" + id + "/file").openConnection();
+        connection.setConnectTimeout(15000); connection.setReadTimeout(15000); connection.setRequestProperty("Cookie", cookie);
+        try {
+            check(connection.getResponseCode() == 200, "Resource download failed");
+            byte[] expected = android.util.Base64.decode(png, android.util.Base64.DEFAULT);
+            try (java.io.InputStream input = connection.getInputStream()) {
+                check(java.util.Arrays.equals(expected, input.readAllBytes()), "Resource download bytes changed");
+            }
+        } finally { connection.disconnect(); }
+        check(status(url + "/api/resources/" + id + "/file", "") == 401, "Resource exposed without session");
+        data(request(url + "/api/resources/storage-usage", cookie, null));
+    }
+    private void verifyLibraryCRUD(String url, String cookie) throws Exception {
+        String base = url + "/api/asset-folders";
+        JSONObject folder = data(request(base, cookie, "{\"name\":\"Android smoke folder\"}")).getJSONObject("folder");
+        String folderID = folder.getString("id");
+        data(requestMethod(base + "/" + folderID, cookie, "{\"name\":\"Android renamed folder\"}", "PATCH"));
+        check(data(request(base, cookie, null)).getJSONArray("folders").toString().contains("Android renamed folder"), "Folder rename missing from library");
+        String id = "mobile-asset-" + java.util.UUID.randomUUID();
+        JSONObject asset = new JSONObject().put("id", id).put("kind", "text").put("title", "Android text asset").put("coverUrl", "")
+            .put("tags", new org.json.JSONArray()).put("folderId", folderID).put("data", new JSONObject().put("content", "Android asset contents"));
+        String endpoint = url + "/api/assets/" + id;
+        data(requestMethod(endpoint, cookie, new JSONObject().put("asset", asset).toString(), "PUT"));
+        check("Android asset contents".equals(data(request(endpoint, cookie, null)).getJSONObject("asset").getJSONObject("data").getString("content")), "Asset content mismatch");
+        data(requestMethod(endpoint, cookie, null, "DELETE"));
+        check(status(endpoint, cookie) == 404, "Deleted asset still accessible");
+        data(requestMethod(base + "/" + folderID, cookie, null, "DELETE"));
+        String canvasFolder = "mobile-folder-" + java.util.UUID.randomUUID();
+        String canvasEndpoint = url + "/api/canvas-folders/" + canvasFolder;
+        data(requestMethod(canvasEndpoint, cookie, new JSONObject().put("folder", new JSONObject().put("id", canvasFolder).put("name", "Android canvas folder")).toString(), "PUT"));
+        check(data(request(url + "/api/canvas-folders", cookie, null)).getJSONArray("folders").toString().contains(canvasFolder), "Canvas folder not listed");
+        data(requestMethod(canvasEndpoint, cookie, null, "DELETE"));
+    }
+    private void verifyHistory(MainActivity activity, String url, String cookie) throws Exception {
+        String endpoint = url + "/api/canvas-projects/mobile-canvas-save-smoke";
+        JSONObject before = data(request(endpoint, cookie, null)).getJSONObject("project");
+        org.json.JSONArray snapshots = data(request(endpoint + "/history", cookie, null)).getJSONArray("snapshots");
+        check(snapshots.length() > 0, "Canvas history missing");
+        String snapshotID = snapshots.getJSONObject(0).getString("id");
+        JSONObject history = data(request(endpoint + "/history/" + snapshotID, cookie, null)).getJSONObject("project");
+        JSONObject restored = data(request(endpoint + "/history/" + snapshotID + "/restore", cookie, new JSONObject().put("revision", before.getInt("revision")).toString())).getJSONObject("project");
+        check(restored.getInt("revision") > before.getInt("revision"), "Restore did not advance revision");
+        JSONObject actual = data(request(endpoint, cookie, null)).getJSONObject("project");
+        check(history.getString("title").equals(actual.getString("title")), "Restored title mismatch");
+        check(history.getJSONArray("nodes").toString().equals(actual.getJSONArray("nodes").toString()), "Restored nodes mismatch");
+        JSONObject payload = new JSONObject().put("opId", java.util.UUID.randomUUID().toString()).put("params", new JSONObject()
+            .put("canvasId", "mobile-canvas-save-smoke").put("expectedRevision", actual.getInt("revision")).put("document", new JSONObject()
+                .put("title", before.getString("title")).put("nodes", before.getJSONArray("nodes")).put("connections", before.getJSONArray("connections"))));
+        data(browserCommit(activity, payload));
+    }
+    private void verifyRoutes(MainActivity activity, String url) throws Exception {
+        check(java.util.Arrays.asList(MainActivity.fileMimeTypes(new String[]{".zip,.json", "image/*"})).contains("application/zip"), "ZIP file picker filter missing");
+        String[][] routes = {{"/canvas", ".lib-tv-project-page"}, {"/assets", ".assets-library-page"}, {"/settings", ".settings-page"}, {"/canvas/mobile-canvas-save-smoke", "[data-node-id='mobile-text-1']"}};
+        for (String[] route : routes) {
+            runOnMainSync(() -> activity.web.loadUrl(url + route[0]));
+            boolean ready = false;
+            for (int attempt = 0; attempt < 120; attempt++) {
+                // Route identity and real content are required; the shared shell alone is insufficient.
+                String script = "Boolean(location.pathname===" + JSONObject.quote(route[0]) + " && document.querySelector(" + JSONObject.quote(route[1]) + ") && document.body.innerText.length>30)";
+                if ("true".equals(evaluate(activity, script))) { ready = true; break; }
+                Thread.sleep(250);
+            }
+            check(ready, "Mobile route failed to render: " + route[0]);
+            check("true".equals(evaluate(activity, "document.documentElement.scrollWidth <= innerWidth+2")), "Horizontal overflow: " + route[0]);
+        }
+        check("true".equals(evaluate(activity, "!document.querySelector('.canvas-topbar-agent-button')")), "Unavailable desktop assistant shown on mobile");
+    }
+    private void verifyRecording(MainActivity activity) throws Exception {
+        JSONObject recorded = browserJSON(activity, "(async()=>{const stream=await navigator.mediaDevices.getUserMedia({audio:true});try{return await new Promise((resolve,reject)=>{const chunks=[];const r=new MediaRecorder(stream);r.ondataavailable=e=>chunks.push(e.data);r.onerror=reject;r.onstop=()=>resolve({code:0,data:{bytes:new Blob(chunks).size}});r.start();setTimeout(()=>r.stop(),500)})}finally{stream.getTracks().forEach(t=>t.stop())}})()");
+        check(data(recorded).getInt("bytes") > 0, "Microphone produced no recording data");
+    }
+    private void verifyBlobExport(MainActivity activity) throws Exception {
+        long size = 34L * 1024 * 1024 + 17;
+        evaluate(activity, "(()=>{const b=new Uint8Array(" + size + ");for(let i=0;i<b.length;i++)b[i]=i%251;window.__exportSmokeURL=URL.createObjectURL(new Blob([b],{type:'application/zip'}));const a=document.createElement('a');a.href=window.__exportSmokeURL;a.download='android-export-smoke.zip';document.body.append(a);a.click();a.remove()})()");
+        java.io.File exported = null;
+        for (int attempt = 0; attempt < 600; attempt++) {
+            java.io.File[] files = getTargetContext().getCacheDir().listFiles((dir, name) -> name.startsWith("beeftv-export-"));
+            if (files != null) for (java.io.File file : files) if (file.length() == size) exported = file;
+            if (exported != null) break;
+            Thread.sleep(100);
+        }
+        check(exported != null, "34MB blob was not transferred to native export cache");
+        try (java.io.RandomAccessFile file = new java.io.RandomAccessFile(exported, "r")) {
+            for (long offset : new long[]{0, 262143, 262144, 33554432, size - 1}) {
+                file.seek(offset); check(file.readUnsignedByte() == offset % 251, "Blob export byte mismatch at " + offset);
+            }
+        }
+        // Cancel the actual system save picker and ensure private temporary data is removed.
+        Thread.sleep(1000);
+        sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK);
+        for (int attempt = 0; attempt < 50 && exported.exists(); attempt++) Thread.sleep(100);
+        check(!exported.exists(), "Cancelled export left temporary data");
+        evaluate(activity, "URL.revokeObjectURL(window.__exportSmokeURL);delete window.__exportSmokeURL");
+    }
+    private JSONObject data(JSONObject envelope) throws Exception {
+        check(envelope.getInt("code") == 0, "API failed: " + envelope.optString("msg"));
+        return envelope.getJSONObject("data");
+    }
+    private JSONObject browserJSON(MainActivity activity, String expression) throws Exception {
+        evaluate(activity, "window.__parityResult=null;Promise.resolve(" + expression + ").then(v=>window.__parityResult=JSON.stringify(v)).catch(e=>window.__parityResult=JSON.stringify({code:-1,msg:String(e)}))");
+        for (int attempt = 0; attempt < 300; attempt++) {
+            Object result = new org.json.JSONTokener(evaluate(activity, "window.__parityResult")).nextValue();
+            if (result instanceof String) return new JSONObject((String)result);
+            Thread.sleep(100);
+        }
+        throw new AssertionError("WebView parity request timed out");
     }
     private void verifyCanvasSave(MainActivity activity, String url, String cookie) throws Exception {
         String canvasID = "mobile-canvas-save-smoke";

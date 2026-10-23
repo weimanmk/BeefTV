@@ -90,6 +90,7 @@ jobs:
           script: |
             adb install apk/app-debug.apk
             adb install -t apk/app-debug-androidTest.apk
+            adb shell pm grant com.weimanmk.beeftv.mobile android.permission.RECORD_AUDIO
             adb shell am instrument -w com.weimanmk.beeftv.mobile.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-first.txt
             grep -q MOBILE_SMOKE_OK smoke-first.txt
             adb shell am force-stop com.weimanmk.beeftv.mobile

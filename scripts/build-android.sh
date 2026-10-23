@@ -5,6 +5,9 @@ SDK="${ANDROID_HOME:?Set ANDROID_HOME to the Android SDK directory}"
 NDK="$SDK/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin"
 cd "$ROOT/web"
 bun install --frozen-lockfile
+for suite in canvas-archive-restore canvas-history-restore canvas-version-history export-integrity manual-channel-protocol canvas-pointer-chrome; do
+    bun test "test/$suite.test.ts"
+done
 BEEFTV_FULL_MEDIA_RESOURCES=0 BEEFTV_DIST_PLATFORM=android bun run build:slim
 cd "$ROOT"
 sh plugin-packages/build-packages.sh
