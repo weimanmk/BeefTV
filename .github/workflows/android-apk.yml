@@ -88,6 +88,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
+            adb shell settings put global hide_error_dialogs 1
             adb install apk/app-debug.apk
             adb install -t apk/app-debug-androidTest.apk
             adb shell pm grant com.weimanmk.beeftv.mobile android.permission.RECORD_AUDIO

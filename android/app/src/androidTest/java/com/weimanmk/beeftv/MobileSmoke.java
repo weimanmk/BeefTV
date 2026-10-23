@@ -205,9 +205,19 @@ public class MobileSmoke extends Instrumentation {
                 file.seek(offset); check(file.readUnsignedByte() == offset % 251, "Blob export byte mismatch at " + offset);
             }
         }
-        // Cancel the actual system save picker and ensure private temporary data is removed.
-        Thread.sleep(1000);
-        for (int attempt = 0; attempt < 10 && exported.exists(); attempt++) {
+        // Wait for DocumentsUI itself; a completed cache write does not mean its
+        // window has launched or gained focus on a slow emulator.
+        boolean pickerReady = false;
+        for (int attempt = 0; attempt < 120; attempt++) {
+            android.view.accessibility.AccessibilityNodeInfo window = getUiAutomation().getRootInActiveWindow();
+            if (window != null) {
+                CharSequence owner = window.getPackageName();
+                if (owner != null && owner.toString().contains("documentsui")) { pickerReady = true; break; }
+            }
+            Thread.sleep(250);
+        }
+        check(pickerReady, "System save picker did not gain focus");
+        for (int attempt = 0; attempt < 30 && exported.exists(); attempt++) {
             getUiAutomation().performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
             Thread.sleep(500);
         }
