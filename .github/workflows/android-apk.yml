@@ -87,7 +87,13 @@ jobs:
           target: google_apis
           profile: pixel_6
           disable-animations: true
+          cores: 2
+          ram-size: 2048M
+          heap-size: 512M
+          emulator-options: -no-window -gpu swiftshader -feature -Vulkan -no-snapshot -noaudio -no-boot-anim
           script: |
+            adb logcat -v threadtime > android-live-logcat.txt &
+            free -m
             adb shell settings put global hide_error_dialogs 1
             adb install apk/app-debug.apk
             adb install -t apk/app-debug-androidTest.apk
@@ -112,5 +118,6 @@ jobs:
             smoke-*.txt
             android-workspace.png
             android-logcat.txt
+            android-live-logcat.txt
             android-evidence*/
           retention-days: 7

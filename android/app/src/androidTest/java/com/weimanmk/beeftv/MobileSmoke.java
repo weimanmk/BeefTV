@@ -56,15 +56,24 @@ public class MobileSmoke extends Instrumentation {
                 Thread.sleep(500);
             }
             check(rendered, "SPA did not render the actual workspace");
+            stage("verifyModelConfig");
             verifyModelConfig(url, cookie, evidence);
+            stage("verifyResources");
             verifyResources(activity, url, cookie, evidence);
+            stage("verifyLibraryCRUD");
             verifyLibraryCRUD(url, cookie);
             check(request(url + "/api/tasks?pageSize=10", cookie, null).getInt("code") == 0, "Task list failed");
+            stage("verifyCanvasSave");
             verifyCanvasSave(activity, url, cookie);
+            stage("verifyHistory");
             verifyHistory(activity, url, cookie);
+            stage("verifyMobileLayout");
             verifyMobileLayout(activity, url);
+            stage("verifyRoutes");
             verifyRoutes(activity, url);
+            stage("verifyRecording");
             verifyRecording(activity);
+            stage("verifyBlobExport");
             verifyBlobExport(activity);
             result.putString("stream", "MOBILE_SMOKE_OK: startup, session, project/canvas/config/resource restart persistence, model revision conflicts, WebView multipart upload, resource bytes, folders/assets CRUD, task list, history restore, landscape, drawer navigation, model form scroll, director panels, mobile routes, microphone, 34MB blob export and cancellation cleanup\n");
             finish(Activity.RESULT_OK, result);
@@ -158,6 +167,11 @@ public class MobileSmoke extends Instrumentation {
         check(before.getJSONArray("nodes").toString().equals(after.getJSONArray("nodes").toString()), "History test failed to return to original nodes: " + after);
     }
 
+    private void stage(String name) {
+        Bundle state = new Bundle();
+        state.putString("stream", "MOBILE_STAGE: " + name + "\n");
+        sendStatus(0, state);
+    }
     private void awaitDOM(MainActivity activity, String expression, String message) throws Exception {
         for (int attempt = 0; attempt < 160; attempt++) {
             if ("true".equals(evaluate(activity, "Boolean(" + expression + ")"))) return;
