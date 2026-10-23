@@ -204,8 +204,10 @@ public class MobileSmoke extends Instrumentation {
         }
         // Cancel the actual system save picker and ensure private temporary data is removed.
         Thread.sleep(1000);
-        sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK);
-        for (int attempt = 0; attempt < 50 && exported.exists(); attempt++) Thread.sleep(100);
+        for (int attempt = 0; attempt < 10 && exported.exists(); attempt++) {
+            getUiAutomation().performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
+            Thread.sleep(500);
+        }
         check(!exported.exists(), "Cancelled export left temporary data");
         evaluate(activity, "URL.revokeObjectURL(window.__exportSmokeURL);delete window.__exportSmokeURL");
     }
