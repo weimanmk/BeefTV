@@ -21,6 +21,7 @@ import (
     "sync"
 
     "github.com/gin-gonic/gin"
+    "infinite-canvas/backend/internal/agentops"
     "infinite-canvas/backend/internal/bootstrap"
 )
 
@@ -42,15 +43,17 @@ func StartMobile(dataDir *C.char) *C.char {
         token := hex.EncodeToString(secret)
         directory := C.GoString(dataDir)
         if err := installOfficialPlugins(directory); err != nil { return nil, err }
+        ownerToken, err := agentops.EnsureOwnerToken(directory)
+        if err != nil { return nil, err }
         ui, err := fs.Sub(bundledUI, "webui")
         if err != nil { return nil, err }
         rt, err := bootstrap.Open(context.Background(), bootstrap.Config{
             Profile: bootstrap.ProfileServer,
             DataDir: directory,
             // Stable origin keeps IndexedDB and UI preferences across launches.
-            ListenAddr: "127.0.0.1:18789",
+            ListenAddr: "127.0.0.1:18790",
             AutoMigrate: true,
-            RouterMiddleware: []gin.HandlerFunc{mobileHandler(ui, token)},
+            RouterMiddleware: []gin.HandlerFunc{mobileHandler(ui, token, ownerToken)},
         })
         if err != nil { return nil, err }
         if err := rt.Start(); err != nil { _ = rt.Close(context.Background()); return nil, err }
@@ -64,7 +67,7 @@ func StartMobile(dataDir *C.char) *C.char {
     return C.CString(sessionJSON)
 }
 
-func mobileHandler(ui fs.FS, token string) gin.HandlerFunc {
+func mobileHandler(ui fs.FS, token, ownerToken string) gin.HandlerFunc {
     files := http.FileServer(http.FS(ui))
     return func(c *gin.Context) {
         cookie, _ := c.Cookie("BeefTVSession")
@@ -74,9 +77,14 @@ func mobileHandler(ui fs.FS, token string) gin.HandlerFunc {
         }
         // Reject other browser origins even if they somehow acquired a cookie.
         origin := c.GetHeader("Origin")
-        if c.Request.Host != "127.0.0.1:18789" || (origin != "" && origin != "http://127.0.0.1:18789") {
+        if c.Request.Host != "127.0.0.1:18790" || (origin != "" && origin != "http://127.0.0.1:18790") {
             c.AbortWithStatus(http.StatusForbidden)
             return
+        }
+        // Native UI sessions may perform these manual operations. Keep the owner
+        // credential entirely inside Go and never authorize client administration.
+        if c.Request.Method == http.MethodPost && mobileManualOperation(c.Request.URL.Path) {
+            c.Request.Header.Set("X-Beeftv-Owner", ownerToken)
         }
         if c.Request.URL.Path == "/api" || strings.HasPrefix(c.Request.URL.Path, "/api/") { c.Next(); return }
         if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead { c.AbortWithStatus(405); return }
@@ -90,6 +98,15 @@ func mobileHandler(ui fs.FS, token string) gin.HandlerFunc {
         }
         files.ServeHTTP(c.Writer, c.Request)
         c.Abort()
+    }
+}
+
+func mobileManualOperation(path string) bool {
+    switch path {
+    case "/api/ops/canvas.document.commit", "/api/ops/canvas.task.bind", "/api/ops/conversation.message.attach":
+        return true
+    default:
+        return false
     }
 }
 

@@ -90,12 +90,12 @@ jobs:
           script: |
             adb install apk/app-debug.apk
             adb install -t apk/app-debug-androidTest.apk
-            adb shell am instrument -w com.weimanmk.beeftv.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-first.txt
+            adb shell am instrument -w com.weimanmk.beeftv.mobile.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-first.txt
             grep -q MOBILE_SMOKE_OK smoke-first.txt
-            adb shell am force-stop com.weimanmk.beeftv
-            adb shell am instrument -w com.weimanmk.beeftv.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-restart.txt
+            adb shell am force-stop com.weimanmk.beeftv.mobile
+            adb shell am instrument -w com.weimanmk.beeftv.mobile.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-restart.txt
             grep -q MOBILE_SMOKE_OK smoke-restart.txt
-            adb exec-out screencap -p > android-workspace.png
+            adb pull /sdcard/Android/data/com.weimanmk.beeftv.mobile/files/workspace.png android-workspace.png
       - name: Capture logs
         if: always()
         timeout-minutes: 1

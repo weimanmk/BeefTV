@@ -71,7 +71,7 @@ public class MainActivity extends Activity {
     }
 
     private boolean local(Uri uri) {
-        return baseURL != null && "http".equals(uri.getScheme()) && "127.0.0.1".equals(uri.getHost()) && uri.getPort() == 18789;
+        return baseURL != null && "http".equals(uri.getScheme()) && "127.0.0.1".equals(uri.getHost()) && uri.getPort() == 18790;
     }
 
     private void openWorkspace(String url, String cookie) {
