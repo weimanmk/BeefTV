@@ -173,6 +173,7 @@ public class MobileSmoke extends Instrumentation {
             Thread.sleep(1000);
             String controls = ".settings-pane-header-actions .ant-btn, .assets-kind-tabs, .assets-kind-actions, .assets-kind-actions .ant-select";
             check("true".equals(evaluate(activity, "Array.from(document.querySelectorAll(" + JSONObject.quote(controls) + ")).every(e=>{const r=e.getBoundingClientRect();return !r.width||(r.left>=-1&&r.right<=innerWidth+1)})")), "Mobile controls clipped outside viewport: " + route[0]);
+            check("true".equals(evaluate(activity, "(()=>{const menu=document.querySelector('.app-workspace-floating-menu'),page=document.querySelector('.app-section-page');return !menu||!page||!menu.getBoundingClientRect().width||page.getBoundingClientRect().top>=menu.getBoundingClientRect().bottom})()")), "Floating navigation overlaps page controls: " + route[0]);
             captureScreen("route-" + route[0].replace('/', '_') + ".png");
         }
         check("true".equals(evaluate(activity, "!document.querySelector('.canvas-topbar-agent-button')")), "Unavailable desktop assistant shown on mobile");

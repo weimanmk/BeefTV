@@ -1459,6 +1459,10 @@
 }
 
 @media (max-width: 720px) {
+    .app-user-workspace.app-product-workspace .app-workspace-stage > div {
+        padding-top: 64px;
+    }
+
     .app-product-workspace .app-section-page .app-section-page-content {
         padding: 0 20px 28px;
     }
