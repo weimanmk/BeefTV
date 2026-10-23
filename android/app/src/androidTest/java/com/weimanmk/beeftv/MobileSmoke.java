@@ -58,13 +58,13 @@ public class MobileSmoke extends Instrumentation {
             check(rendered, "SPA did not render the actual workspace");
             stage("verifyModelConfig");
             verifyModelConfig(url, cookie, evidence);
+            stage("verifyMobileLayout");
+            verifyMobileLayout(activity, url);
             stage("verifyResources");
             verifyResources(activity, url, cookie, evidence);
             stage("verifyLibraryCRUD");
             verifyLibraryCRUD(url, cookie);
             check(request(url + "/api/tasks?pageSize=10", cookie, null).getInt("code") == 0, "Task list failed");
-            stage("verifyMobileLayout");
-            verifyMobileLayout(activity, url);
             stage("verifyCanvasSave");
             verifyCanvasSave(activity, url, cookie);
             stage("verifyHistory");
