@@ -66,6 +66,7 @@ func StartMobile(dataDir *C.char) *C.char {
         if _, err := rand.Read(secret); err != nil { return nil, err }
         token := hex.EncodeToString(secret)
         directory := C.GoString(dataDir)
+        mobileReferences = &mobileReferenceStore{dir: directory}
         temp := filepath.Join(directory, "cache", "tmp")
         if err := os.MkdirAll(temp, 0700); err != nil { return nil, err }
         if err := os.Setenv("TMPDIR", temp); err != nil { return nil, err }
@@ -118,6 +119,7 @@ func mobileHandler(ui fs.FS, token, ownerToken string) gin.HandlerFunc {
             c.Request.Header.Set("X-Beeftv-Owner", ownerToken)
         }
         if mobileExports != nil && mobileExports.handle(c) { c.Abort(); return }
+        if mobileReferences != nil && mobileReferences.handle(c) { c.Abort(); return }
         if c.Request.URL.Path == "/api/mobile/browser-request" {
             if c.Request.Method != http.MethodGet { c.AbortWithStatus(405); return }
             c.Header("Cache-Control", "no-store")

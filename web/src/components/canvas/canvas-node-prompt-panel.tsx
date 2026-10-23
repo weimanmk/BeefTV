@@ -1,3 +1,4 @@
+import { isAndroidMobile } from "@/lib/mobile-platform";
 import { Button, Image as AntImage, InputNumber, Modal, Popover } from "antd";
 import { Tooltip } from "@/components/ui/base/tooltip";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
@@ -59,9 +60,9 @@ type CanvasTheme = (typeof canvasThemes)[keyof typeof canvasThemes];
 
 const PROMPT_REFERENCE_SHELF_HEIGHT = 58;
 // Larger user fonts increase the three-line compact editor bounds.
-const PROMPT_EDITOR_MIN_HEIGHT = 72;
-const PROMPT_EDITOR_EXPANDED_MIN_HEIGHT = 200;
-const PROMPT_EDITOR_LINE_HEIGHT = 20;
+const PROMPT_EDITOR_MIN_HEIGHT = isAndroidMobile ? 56 : 72;
+const PROMPT_EDITOR_EXPANDED_MIN_HEIGHT = isAndroidMobile ? 120 : 200;
+const PROMPT_EDITOR_LINE_HEIGHT = isAndroidMobile ? 18 : 20;
 const PROMPT_EDITOR_EXPANDED_LINE_HEIGHT = 24;
 const PROMPT_EDITOR_VERTICAL_PADDING = 12;
 const PROMPT_EDITOR_EXPANDED_VERTICAL_PADDING = 20;
@@ -76,7 +77,7 @@ export function CanvasNodePromptPanel({ projectId, node, isRunning, onPromptChan
     const themeName = useActiveTheme();
     const theme = canvasThemes[themeName];
     const preferredFontSize = useCreationPreferencesStore((state) => state.preferences.promptFontSize);
-    const promptFontSize = preferredFontSize ?? DEFAULT_PROMPT_FONT_SIZE;
+    const promptFontSize = preferredFontSize ?? (isAndroidMobile ? 13 : DEFAULT_PROMPT_FONT_SIZE);
     const expandedFontSize = promptFontSize;
     const promptOptimizerInstallation = usePluginStore((state) => state.installations.find((item) => item.manifest.id === PROMPT_OPTIMIZER_PLUGIN_ID));
     const promptOptimizerEnabled = usePluginStore((state) => state.pluginStates[PROMPT_OPTIMIZER_PLUGIN_ID]?.effectiveEnabled ?? Boolean(state.installations.find((item) => item.manifest.id === PROMPT_OPTIMIZER_PLUGIN_ID)?.enabled));
@@ -1038,7 +1039,7 @@ function PromptModalResizeHandle({ size, measure, onResize, accent }: { size: { 
 function promptEditorBounds(expanded: boolean, hasReferences: boolean, fontSize: number) {
     const shelfHeight = hasReferences ? PROMPT_REFERENCE_SHELF_HEIGHT : 0;
     const lineHeight = Math.round(fontSize * 1.5);
-    const min = (expanded ? PROMPT_EDITOR_EXPANDED_MIN_HEIGHT : Math.max(PROMPT_EDITOR_MIN_HEIGHT, lineHeight * 3 + PROMPT_EDITOR_VERTICAL_PADDING)) + shelfHeight;
+    const min = (expanded ? PROMPT_EDITOR_EXPANDED_MIN_HEIGHT : Math.max(PROMPT_EDITOR_MIN_HEIGHT, lineHeight * (isAndroidMobile ? 2 : 3) + PROMPT_EDITOR_VERTICAL_PADDING)) + shelfHeight;
     const max = (expanded ? lineHeight * PROMPT_EDITOR_EXPANDED_MAX_LINES + PROMPT_EDITOR_EXPANDED_VERTICAL_PADDING : lineHeight * PROMPT_EDITOR_MAX_LINES + PROMPT_EDITOR_VERTICAL_PADDING) + shelfHeight;
     return { min, max };
 }
@@ -1085,3 +1086,4 @@ function audioConfigPatch(key: CanvasAudioSettingKey, value: string) {
     if (key === "audioVolume") return { audioVolume: value };
     return { audioInstructions: value };
 }
+

@@ -58,6 +58,8 @@ Android 冒烟测试新增横屏方向、菜单展开/关闭/导航、模型表�
 
 ### 0.1.5 同步与回归范围
 
+补回桌面版参考素材 S3 对象存储设置和上传：使用同一 referencestorage 实现、加密配置和素材归属检查，原始 Secret Key 不回传前端。按需在生成时将本地参考素材转换为可公开读取的链接；需要用户自己的存储服务。未进行真实付费存储上传验收。
+
 合入 fork main 的 v2.0.3 超分超时与错误分类修复。手机设置提供紧凑/舒适密度，默认 13px 根字号和 30px 常规 AntD 控件；桌面尺寸保持原值。画布百分比仍表示真实画布比例，不伪造 100%。节点和背板尺寸手柄使用 Pointer Events、pointer capture 和 pointercancel，兼容触摸与鼠标。
 
 新增无付费模型的 desktop / Android touch Chromium 组件回归和 Go 文件名、字节、权限、取消/保存回执测试。自动化浏览器测试不能替代 Windows/macOS 安装版或 Android 真机验收。此前 Android CI 模拟器出现离线，原有 smoke job 保留诊断；未取得通过证据前不能写成实机回归完成。

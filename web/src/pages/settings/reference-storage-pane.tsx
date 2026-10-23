@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, App, Button, Input, Switch } from "antd";
-import { getDesktopAppBinding, type ReferenceStorageConfig } from "@/services/desktop-runtime";
+import { type ReferenceStorageConfig } from "@/services/desktop-runtime";
+import { getReferenceStorageBinding } from "@/services/reference-storage-binding";
 
 const fields = [
     ["endpoint", "S3 端点", "https://…"],
@@ -11,7 +12,7 @@ const fields = [
 ] as const;
 
 export function ReferenceStoragePane() {
-    const binding = getDesktopAppBinding();
+    const binding = getReferenceStorageBinding();
     const { message } = App.useApp();
     const [config, setConfig] = useState<ReferenceStorageConfig>({ enabled: false, endpoint: "", bucket: "", region: "auto", accessKeyId: "", publicBaseURL: "", hasSecret: false });
     const [secret, setSecret] = useState("");
@@ -101,3 +102,4 @@ export function ReferenceStoragePane() {
         </section>
     );
 }
+

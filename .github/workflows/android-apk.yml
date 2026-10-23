@@ -47,7 +47,7 @@ jobs:
         working-directory: web
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-        run: bun test test/mobile-parity.browser.test.ts test/canvas-node-title.browser.test.ts test/media-upscale.test.ts
+        run: bun test test/mobile-parity.browser.test.ts test/canvas-node-title.browser.test.ts test/media-upscale.test.ts test/reference-media-upload.test.ts
       - name: Build frontend, native backend and APK
         env:
           NODE_OPTIONS: --max-old-space-size=6144
@@ -85,6 +85,32 @@ jobs:
           path: android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           if-no-files-found: error
           retention-days: 7
+
+  media-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mobile: ['0', '1']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install real media test dependencies
+        working-directory: web
+        run: |
+          bun install --frozen-lockfile
+          bunx playwright install --with-deps chromium
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Real FFmpeg worker cancellation and recovery
+        working-directory: web
+        env:
+          BEEFTV_BROWSER_WORKER_TEST: '1'
+          BEEFTV_TEST_MOBILE: ${{ matrix.mobile }}
+        run: bun test test/canvas-ffmpeg-session.browser.test.ts
 
   smoke:
     needs: build

@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
+import { InfiniteCanvas } from "@/components/canvas/infinite-canvas";
 import { createRoot } from "react-dom/client";
 import { ConfigProvider, Input } from "antd";
 import { CanvasNode } from "@/components/canvas/canvas-node";
@@ -16,6 +17,11 @@ function Harness() {
         <CanvasNode data={node} scale={1} isSelected isRelated={false} isFocusRelated={false} isConnectionTarget={false} onMouseDown={noop} onHoverStart={noop} onHoverEnd={noop} onConnectStart={noop} onResize={resize} onTitleChange={noop} onContentChange={noop} onContextMenu={noop}/>
     </ConfigProvider>;
 }
+function PinchHarness() {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [viewport, setViewport] = useState({x:0,y:0,k:1});
+    return <><output id="viewport" style={{position:"absolute",zIndex:200,pointerEvents:"none"}}>{JSON.stringify(viewport)}</output><InfiniteCanvas containerRef={containerRef} viewport={viewport} onViewportChange={setViewport} backgroundMode="blank"><span/></InfiniteCanvas></>;
+}
 applyMobileDensity("compact");
-createRoot(document.getElementById("root")!).render(<Harness/>);
+createRoot(document.getElementById("root")!).render(location.search.includes("pinch") ? <PinchHarness/> : <Harness/>);
 

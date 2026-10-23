@@ -1,4 +1,4 @@
-import { getDesktopAppBinding } from "@/services/desktop-runtime";
+import { getReferenceStorageBinding } from "@/services/reference-storage-binding";
 import { assertUserScope, captureUserScope, isUserScopeAbandonedError } from "@/lib/user-scope-guard";
 import { startOperation } from "@/stores/use-operation-progress";
 import type { CanvasOperationTarget } from "@/lib/operation-progress";
@@ -13,7 +13,7 @@ let referenceUploadQueue = Promise.resolve();
 export async function uploadReferenceLinks(references: ReferenceLinkRequest[], signal?: AbortSignal, target?: CanvasOperationTarget): Promise<Record<string, string>> {
     const scope = captureUserScope();
     signal?.throwIfAborted();
-    const binding = typeof window === "undefined" ? undefined : getDesktopAppBinding();
+    const binding = typeof window === "undefined" ? undefined : getReferenceStorageBinding();
     const candidates = references.filter((item) => item.resourceID && item.upload !== false);
     if (!binding?.ReferenceStorageSettings || !binding.UploadReferenceMedia || !candidates.length) return {};
     const config = await binding.ReferenceStorageSettings();
@@ -64,3 +64,4 @@ export function isReferenceHTTPSLink(value: string): boolean {
         return false;
     }
 }
+

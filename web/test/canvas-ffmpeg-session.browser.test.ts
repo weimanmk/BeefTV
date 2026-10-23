@@ -54,7 +54,7 @@ afterAll(async () => {
 });
 
 async function pageFor() {
-    const page = await browser.newPage();
+    const page = await browser.newPage(process.env.BEEFTV_TEST_MOBILE === "1" ? { viewport: { width: 960, height: 480 }, hasTouch: true, isMobile: true } : { viewport: { width: 1440, height: 900 } });
     page.on("pageerror", (error) => console.error("fixture page error:", error.message));
     await page.route("**/*", (route) => new URL(route.request().url()).hostname === "127.0.0.1" ? route.continue() : route.abort());
     await page.addInitScript(() => {
@@ -115,3 +115,4 @@ test.skipIf(!enabled)("real queued merge cancel leaves the active worker running
         await page.close();
     }
 }, 120_000);
+

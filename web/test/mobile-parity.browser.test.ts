@@ -4,7 +4,7 @@ import { chromium, type Browser } from "playwright";
 let browser:Browser;
 let scripts:Record<string,string> = {};
 const css = readFileSync(import.meta.dir+"/../src/styles/android-mobile.css","utf8")+ `
-body{margin:0}.node-element,.absolute{position:absolute}.relative{position:relative}.w-full{width:100%}.h-full{height:100%}
+body{margin:0}html,body,#root{height:100%}.touch-none{touch-action:none}.node-element,.absolute{position:absolute}.relative{position:relative}.w-full{width:100%}.h-full{height:100%}
 [data-canvas-resize-handle]{position:absolute;width:32px;height:32px;z-index:99}
 [data-canvas-resize-handle="bottom-right"]{right:-16px;bottom:-16px}
 [data-canvas-resize-handle="top-right"]{right:-16px;top:-16px}
@@ -61,6 +61,16 @@ for(const platform of ["android","desktop"]){
             expect(size.width).toBeCloseTo(380,0);expect(size.height).toBeCloseTo(280,0);
             await page.mouse.move(x+150,y+100);
             expect(JSON.parse(await page.locator("#size").innerText())).toEqual(size);
+            if (platform === "android") {
+                await page.goto("https://parity.test/?pinch");
+                await page.locator("[data-canvas-viewport]").waitFor();
+                const cdp = await context.newCDPSession(page);
+                await cdp.send("Input.dispatchTouchEvent", {type:"touchStart", touchPoints:[{x:200,y:180,id:1},{x:400,y:180,id:2}]});
+                await cdp.send("Input.dispatchTouchEvent", {type:"touchMove", touchPoints:[{x:100,y:180,id:1},{x:500,y:180,id:2}]});
+                await cdp.send("Input.dispatchTouchEvent", {type:"touchEnd", touchPoints:[]});
+                await page.waitForFunction(()=>JSON.parse(document.querySelector("#viewport")!.textContent!).k>1.9);
+                expect(JSON.parse(await page.locator("#viewport").innerText()).k).toBeCloseTo(2,1);
+            }
         }finally{await context.close()}
     },30000);
 }
