@@ -8,12 +8,15 @@ import "C"
 import (
     "context"
     "crypto/rand"
+    "crypto/sha256"
     "crypto/subtle"
     "embed"
     "encoding/hex"
     "encoding/json"
     "io/fs"
     "net/http"
+    "os"
+    "path/filepath"
     "strings"
     "sync"
 
@@ -22,7 +25,7 @@ import (
 )
 
 // The workflow replaces this placeholder with the actual Vite production build.
-//go:embed all:webui
+//go:embed all:webui all:officialplugins
 var bundledUI embed.FS
 var runtimeMu sync.Mutex
 var mobileRuntime *bootstrap.Runtime
@@ -37,11 +40,13 @@ func StartMobile(dataDir *C.char) *C.char {
         secret := make([]byte, 32)
         if _, err := rand.Read(secret); err != nil { return nil, err }
         token := hex.EncodeToString(secret)
+        directory := C.GoString(dataDir)
+        if err := installOfficialPlugins(directory); err != nil { return nil, err }
         ui, err := fs.Sub(bundledUI, "webui")
         if err != nil { return nil, err }
         rt, err := bootstrap.Open(context.Background(), bootstrap.Config{
             Profile: bootstrap.ProfileServer,
-            DataDir: C.GoString(dataDir),
+            DataDir: directory,
             // Stable origin keeps IndexedDB and UI preferences across launches.
             ListenAddr: "127.0.0.1:18789",
             AutoMigrate: true,
@@ -77,7 +82,6 @@ func mobileHandler(ui fs.FS, token string) gin.HandlerFunc {
         if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead { c.AbortWithStatus(405); return }
         c.Header("X-Content-Type-Options", "nosniff")
         c.Header("Cross-Origin-Opener-Policy", "same-origin")
-        c.Header("Cross-Origin-Embedder-Policy", "require-corp")
         name := strings.TrimPrefix(c.Request.URL.Path, "/")
         if name == "" { name = "index.html" }
         if info, err := fs.Stat(ui, name); err != nil || info.IsDir() {
@@ -87,6 +91,27 @@ func mobileHandler(ui fs.FS, token string) gin.HandlerFunc {
         files.ServeHTTP(c.Writer, c.Request)
         c.Abort()
     }
+}
+
+func installOfficialPlugins(dataDir string) error {
+    entries, err := fs.ReadDir(bundledUI, "officialplugins")
+    if err != nil { return err }
+    packages := make(map[string][]byte)
+    fingerprint := sha256.New()
+    for _, entry := range entries {
+        if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".beeftv-plugin") { continue }
+        data, err := bundledUI.ReadFile("officialplugins/" + entry.Name())
+        if err != nil { return err }
+        packages[entry.Name()] = data
+        fingerprint.Write([]byte(entry.Name()))
+        fingerprint.Write(data)
+    }
+    destination := filepath.Join(dataDir, "mobile-runtime", "plugins-" + hex.EncodeToString(fingerprint.Sum(nil)[:8]))
+    if err := os.MkdirAll(destination, 0o700); err != nil { return err }
+    for name, data := range packages {
+        if err := os.WriteFile(filepath.Join(destination, name), data, 0o600); err != nil { return err }
+    }
+    return os.Setenv("CANVAS_OFFICIAL_PLUGIN_DIR", destination)
 }
 
 func main() {}

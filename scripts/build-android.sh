@@ -7,6 +7,8 @@ cd "$ROOT/web"
 bun install --frozen-lockfile
 BEEFTV_FULL_MEDIA_RESOURCES=0 BEEFTV_DIST_PLATFORM=android bun run build:slim
 cd "$ROOT"
+sh plugin-packages/build-packages.sh
+cp plugin-packages/*.beeftv-plugin backend/cmd/mobile/officialplugins/
 cp -R web/dist/. backend/cmd/mobile/webui/
 cd backend
 go test ./cmd/mobile
