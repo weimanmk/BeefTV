@@ -89,7 +89,7 @@ jobs:
           disable-animations: true
           script: |
             adb install apk/app-debug.apk
-            adb install apk/app-debug-androidTest.apk
+            adb install -t apk/app-debug-androidTest.apk
             adb shell am instrument -w com.weimanmk.beeftv.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-first.txt
             grep -q MOBILE_SMOKE_OK smoke-first.txt
             adb shell am force-stop com.weimanmk.beeftv
@@ -98,7 +98,7 @@ jobs:
             adb exec-out screencap -p > android-workspace.png
       - name: Capture logs
         if: always()
-        run: adb logcat -d > android-logcat.txt || true
+        run: timeout 15s adb logcat -d > android-logcat.txt || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
