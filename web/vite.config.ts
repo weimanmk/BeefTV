@@ -1,5 +1,5 @@
 import { dirname, resolve } from "node:path";
-import { readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import react from "@vitejs/plugin-react";
@@ -33,6 +33,7 @@ function pruneOptionalMediaPlugin() {
             }
             rmSync(resolve(dist, "canvas/models/blaze-face-full-range-sparse.tflite"), { force: true });
             const staticDir = resolve(dist, "static");
+            if (!existsSync(staticDir)) return;
             for (const file of readdirSync(staticDir)) {
                 if (file.startsWith("ffmpeg-core-")) rmSync(resolve(staticDir, file), { force: true });
             }

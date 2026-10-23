@@ -50,3 +50,61 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BeefTV-Mobile-Test-APK
+          path: android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  smoke:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BeefTV-Mobile-APK
+          path: apk
+      - uses: actions/download-artifact@v4
+        with:
+          name: BeefTV-Mobile-Test-APK
+          path: apk
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test packaged app and persistence after process restart
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install apk/app-debug.apk
+            adb install apk/app-debug-androidTest.apk
+            adb shell am instrument -w com.weimanmk.beeftv.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-first.txt
+            grep -q MOBILE_SMOKE_OK smoke-first.txt
+            adb shell am force-stop com.weimanmk.beeftv
+            adb shell am instrument -w com.weimanmk.beeftv.test/com.weimanmk.beeftv.MobileSmoke | tee smoke-restart.txt
+            grep -q MOBILE_SMOKE_OK smoke-restart.txt
+            adb exec-out screencap -p > android-workspace.png
+      - name: Capture logs
+        if: always()
+        run: adb logcat -d > android-logcat.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-Smoke-Evidence
+          path: |
+            smoke-*.txt
+            android-workspace.png
+            android-logcat.txt
+          retention-days: 7

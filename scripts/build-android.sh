@@ -19,4 +19,4 @@ for target in arm64-v8a:arm64:aarch64 x86_64:amd64:x86_64; do
         go build -buildmode=c-shared -trimpath -ldflags='-s -w' -o "$OUTPUT/libbeeftv.so" ./cmd/mobile
 done
 cd "$ROOT/android"
-gradle --no-daemon assembleDebug
+gradle --no-daemon assembleDebug assembleDebugAndroidTest
