@@ -1,3 +1,4 @@
+import { downloadOwnedOrBrowserMedia } from "@/services/desktop-media-save";
 import { ImageSizePicker } from "@/components/image-size-picker";
 import { imageResolutionUsesQuality } from "@/lib/image-size-presets";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -718,15 +719,11 @@ function revisionInput(values: ShotEditorValues): ShotRevisionInput {
 async function downloadArtifact(artifact: ShotArtifact, shotTitle: string, onError: (content: string) => void) {
     if (!artifact.resourceId) return;
     try {
-        const response = await fetch(resourceFileUrl(artifact.resourceId), { credentials: "include" });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = `${shotTitle || "shot"}-v${artifact.version}.${artifact.type === "video" ? "mp4" : "png"}`;
-        anchor.click();
-        window.setTimeout(() => URL.revokeObjectURL(url), 40_000);
+        await downloadOwnedOrBrowserMedia({
+            resourceId: artifact.resourceId,
+            browserUrl: resourceFileUrl(artifact.resourceId),
+            fileName: `${shotTitle || "shot"}-v${artifact.version}.${artifact.type === "video" ? "mp4" : "png"}`,
+        });
     } catch (error) {
         onError(error instanceof Error ? `下载失败：${error.message}` : "下载失败");
     }

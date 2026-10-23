@@ -1,3 +1,4 @@
+import { saveOwnedOrBrowserBlob } from "@/services/desktop-media-save";
 import { ImageSizePicker } from "@/components/image-size-picker";
 import { imageResolutionUsesQuality } from "@/lib/image-size-presets";
 import { createPortal } from "react-dom";
@@ -156,7 +157,7 @@ export function CreationHistoryDrawer({ open, conversations, activeId, onNew, on
                                         </span>
                                     </button>
                                     <span className="creation-history-time-slot" aria-hidden={menuOpenId === conversation.id}><time dateTime={conversation.updatedAt}>{formatHistoryRelativeTime(conversation.updatedAt)}</time></span>
-                                    <Dropdown trigger={["click"]} placement="bottomRight" open={menuOpenId === conversation.id} onOpenChange={(open) => setMenuOpenId(open ? conversation.id : null)} overlayClassName="creation-history-menu-overlay" menu={{ items: [{ key: "rename", label: "重命名", icon: <Pencil /> }, { key: "export", label: "导出对话", icon: <Download /> }, { key: "delete", label: "删除对话", danger: true, icon: <Trash2 /> }], onClick: ({ key }) => { setMenuOpenId(null); if (key === "rename") { beginRename(conversation); } else if (key === "export") { downloadCreationConversation(conversation, assistantName, exportUser?.displayName || "你"); drawerToast.success("对话已导出为 Markdown"); } else { onDelete(conversation); } } }}>
+                                    <Dropdown trigger={["click"]} placement="bottomRight" open={menuOpenId === conversation.id} onOpenChange={(open) => setMenuOpenId(open ? conversation.id : null)} overlayClassName="creation-history-menu-overlay" menu={{ items: [{ key: "rename", label: "重命名", icon: <Pencil /> }, { key: "export", label: "导出对话", icon: <Download /> }, { key: "delete", label: "删除对话", danger: true, icon: <Trash2 /> }], onClick: ({ key }) => { setMenuOpenId(null); if (key === "rename") { beginRename(conversation); } else if (key === "export") { void downloadCreationConversation(conversation, assistantName, exportUser?.displayName || "你").then((result) => { if (result === "saved") drawerToast.success("对话已保存为 Markdown"); else drawerToast.info("已取消保存"); }).catch((error) => drawerToast.error(error instanceof Error ? error.message : "对话保存失败")); } else { onDelete(conversation); } } }}>
                                         <button type="button" className={menuOpenId === conversation.id ? "creation-history-more is-open" : "creation-history-more"} aria-label={`更多操作：${conversation.title.trim() || "新创作"}`} onClick={(event) => event.preventDefault()}><MoreHorizontal /></button>
                                     </Dropdown>
                                 </div>
@@ -919,18 +920,10 @@ function buildConversationExportMarkdown(conversation: CreationConversation, ass
     }
     return lines.join("\n").trim() + "\n";
 }
-function downloadCreationConversation(conversation: CreationConversation, assistantName: string, userName: string) {
+async function downloadCreationConversation(conversation: CreationConversation, assistantName: string, userName: string) {
     const safeTitle = (conversation.title.trim() || "新创作").replace(/[\\/:*?"<>|]/g, "_").slice(0, 60) || "新创作";
     const blob = new Blob([buildConversationExportMarkdown(conversation, assistantName, userName)], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${safeTitle}.md`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    // Android reads the blob after the browser dispatches its download event.
-    window.setTimeout(() => URL.revokeObjectURL(url), 40_000);
+    return saveOwnedOrBrowserBlob(`${safeTitle}.md`, blob);
 }
 function conversationPreviewMessage(conversation: CreationConversation) {
     let fallback: CreationMessage | undefined;
