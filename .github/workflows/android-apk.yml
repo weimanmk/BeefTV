@@ -87,10 +87,11 @@ jobs:
           target: google_apis
           profile: pixel_6
           disable-animations: true
+          emulator-build: 13610412
           cores: 2
-          ram-size: 2048M
+          ram-size: 4096M
           heap-size: 512M
-          emulator-options: -no-window -gpu swiftshader -feature -Vulkan -no-snapshot -noaudio -no-boot-anim
+          emulator-options: -no-window -gpu swiftshader_indirect -feature -Vulkan -no-snapshot -noaudio -no-boot-anim
           script: |
             adb logcat -v threadtime > android-live-logcat.txt &
             free -m
@@ -110,6 +111,11 @@ jobs:
             adb logcat -d > android-logcat.txt
             grep -q MOBILE_SMOKE_OK smoke-restart.txt
             adb pull /sdcard/Android/data/com.weimanmk.beeftv.mobile/files/workspace.png android-workspace.png
+      - name: Capture host crash diagnostics
+        if: always()
+        run: |
+          free -m > host-memory.txt
+          sudo dmesg | tail -200 > host-kernel.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -119,5 +125,7 @@ jobs:
             android-workspace.png
             android-logcat.txt
             android-live-logcat.txt
+            host-memory.txt
+            host-kernel.txt
             android-evidence*/
           retention-days: 7

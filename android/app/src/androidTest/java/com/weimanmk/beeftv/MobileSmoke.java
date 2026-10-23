@@ -63,12 +63,12 @@ public class MobileSmoke extends Instrumentation {
             stage("verifyLibraryCRUD");
             verifyLibraryCRUD(url, cookie);
             check(request(url + "/api/tasks?pageSize=10", cookie, null).getInt("code") == 0, "Task list failed");
+            stage("verifyMobileLayout");
+            verifyMobileLayout(activity, url);
             stage("verifyCanvasSave");
             verifyCanvasSave(activity, url, cookie);
             stage("verifyHistory");
             verifyHistory(activity, url, cookie);
-            stage("verifyMobileLayout");
-            verifyMobileLayout(activity, url);
             stage("verifyRoutes");
             verifyRoutes(activity, url);
             stage("verifyRecording");
@@ -190,6 +190,8 @@ public class MobileSmoke extends Instrumentation {
         evaluate(activity, "localStorage.setItem('infinite-canvas:workspace-sidebar-collapsed','1')");
         runOnMainSync(() -> activity.web.loadUrl(url + "/"));
         awaitDOM(activity, "document.querySelector('.beeftv-home')", "Home missing");
+        stage("drawer-open");
+        captureScreen("home-landscape.png");
         clickDOM(activity, "[aria-label='展开侧栏']");
         awaitDOM(activity, "document.querySelector('.workspace-mobile-navigation [data-nav-id=assets]')", "Mobile drawer missing");
         Thread.sleep(600);
@@ -199,6 +201,7 @@ public class MobileSmoke extends Instrumentation {
         clickDOM(activity, "[aria-label='展开侧栏']");
         clickDOM(activity, ".workspace-mobile-navigation [aria-label='收起侧栏']");
         awaitDOM(activity, "!document.querySelector('.workspace-mobile-navigation .ant-drawer-body')", "Drawer close failed");
+        stage("model-form");
         runOnMainSync(() -> activity.web.loadUrl(url + "/settings?section=channels"));
         awaitDOM(activity, "document.querySelector('.settings-pane-header-actions .ant-btn')", "Model settings missing");
         check("true".equals(evaluate(activity, "(()=>{const b=[...document.querySelectorAll('.settings-pane-header-actions button')].find(e=>e.innerText.includes('添加模型服务'));if(!b)return false;b.click();return true})()")), "Add model service missing");
@@ -209,6 +212,7 @@ public class MobileSmoke extends Instrumentation {
         }
         captureScreen("model-form-landscape.png");
         clickDOM(activity, ".model-service-modal .ant-modal-close");
+        stage("director");
         runOnMainSync(() -> activity.web.loadUrl(url + "/canvas?mode=new&start=director"));
         awaitDOM(activity, "document.querySelector('[data-director-workbench]')", "Director did not open");
         Thread.sleep(1500);
