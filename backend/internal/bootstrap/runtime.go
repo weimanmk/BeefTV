@@ -128,6 +128,7 @@ func Open(_ context.Context, raw Config) (result *Runtime, openErr error) {
 		return nil, configErr
 	}
 	beefAPIConnection, beefAPIErr := beefapi.New(beefapi.Options{
+        OpenURL: cfg.OpenExternalURL,
 		DataDir: cfg.DataDir, Provider: providerConfig, ClientVersion: buildinfo.Current().Version,
 		FetchCatalog: func(apiKey, baseURL string) ([]beefapi.CatalogModel, error) {
 			owner, ownerErr := svc.LocalWorkspaceOwner()

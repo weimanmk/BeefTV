@@ -731,6 +731,8 @@ export function BeefAPIConnectionActions({
     if (state === "pending") {
         return (
             <>
+                {connection?.verificationUri && <Button className={buttonClass} size="small" href={connection.verificationUri} target="_blank" rel="noopener noreferrer">打开浏览器登录</Button>}
+                {connection?.userCode && <span className="self-center text-xs">授权码：{connection.userCode}，完成后返回应用</span>}
                 <Button className={buttonClass} size="small" loading={busy} onClick={onCancel}>
                     取消
                 </Button>

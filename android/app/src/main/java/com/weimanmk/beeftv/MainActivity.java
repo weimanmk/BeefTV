@@ -35,6 +35,11 @@ public class MainActivity extends Activity {
     WebView web;
     private String baseURL;
     private String sessionCookie;
+    private boolean resumed;
+    private String accountBrowserTarget;
+    private boolean browserPollInFlight;
+    private final android.os.Handler browserHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable browserPoll = () -> pollBrowserRequest();
     private ValueCallback<Uri[]> fileCallback;
     private String pendingURL;
     private java.io.File pendingFile;
@@ -72,6 +77,73 @@ public class MainActivity extends Activity {
         });
     }
 
+    @Override protected void onResume() {
+        super.onResume();
+        resumed = true;
+        browserHandler.removeCallbacks(browserPoll);
+        if (accountBrowserTarget != null) {
+            String target = accountBrowserTarget; accountBrowserTarget = null;
+            openAccountBrowser(target);
+        }
+        browserHandler.post(browserPoll);
+    }
+
+    @Override protected void onPause() {
+        resumed = false;
+        browserHandler.removeCallbacks(browserPoll);
+        super.onPause();
+    }
+
+    static boolean trustedAccountURL(Uri target) {
+        String host = target.getHost();
+        return "https".equals(target.getScheme()) && target.getUserInfo() == null
+            && (target.getPort() == -1 || target.getPort() == 443)
+            && ("beeftv.app".equals(host) || "enterprise.beefapi.com".equals(host));
+    }
+
+    private void openAccountBrowser(String target) {
+        if (!trustedAccountURL(Uri.parse(target))) return;
+        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(target)).addCategory(Intent.CATEGORY_BROWSABLE)); }
+        catch (ActivityNotFoundException failure) { toast("未找到浏览器，请安装或启用系统浏览器后重试"); }
+    }
+
+    private void pollBrowserRequest() {
+        if (!resumed || isDestroyed()) return;
+        if (baseURL == null || browserPollInFlight) { browserHandler.postDelayed(browserPoll, 1000); return; }
+        browserPollInFlight = true;
+        WORKER.execute(() -> {
+            String target = "";
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection)new URL(baseURL + "/api/mobile/browser-request").openConnection();
+                connection.setInstanceFollowRedirects(false);
+                connection.setRequestProperty("Cookie", sessionCookie);
+                connection.setConnectTimeout(2000);
+                connection.setReadTimeout(2000);
+                if (connection.getResponseCode() == 200) {
+                    try (InputStream input = connection.getInputStream()) {
+                        java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+                        byte[] buffer = new byte[4096]; int count;
+                        while ((count = input.read(buffer)) != -1 && output.size() < 16384) output.write(buffer, 0, count);
+                        JSONObject reply = new JSONObject(output.toString("UTF-8"));
+                        if (reply.optInt("code", -1) == 0) target = reply.getJSONObject("data").optString("url");
+                    }
+                }
+            } catch (Exception ignored) { }
+            finally { if (connection != null) connection.disconnect(); }
+            final String pending = target;
+            runOnUiThread(() -> {
+                browserPollInFlight = false;
+                if (isDestroyed()) return;
+                if (!pending.isEmpty()) {
+                    if (resumed) openAccountBrowser(pending);
+                    else accountBrowserTarget = pending;
+                }
+                if (resumed) browserHandler.postDelayed(browserPoll, 1000);
+            });
+        });
+    }
+
     private boolean local(Uri uri) {
         return baseURL != null && "http".equals(uri.getScheme()) && "127.0.0.1".equals(uri.getHost()) && uri.getPort() == 18790;
     }
@@ -95,6 +167,7 @@ public class MainActivity extends Activity {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri target = request.getUrl();
                 if (local(target)) return false;
+                if (request.isForMainFrame() && trustedAccountURL(target)) { openAccountBrowser(target.toString()); return true; }
                 if (request.isForMainFrame() && request.hasGesture() && "https".equals(target.getScheme())) {
                     try { startActivity(new Intent(Intent.ACTION_VIEW, target)); } catch (ActivityNotFoundException ignored) { }
                 }
@@ -298,6 +371,8 @@ public class MainActivity extends Activity {
         super.onBackPressed();
     }
     @Override protected void onDestroy() {
+        resumed = false;
+        browserHandler.removeCallbacksAndMessages(null);
         if (fileCallback != null) { fileCallback.onReceiveValue(null); fileCallback = null; }
         if (microphoneRequest != null) { microphoneRequest.deny(); microphoneRequest = null; }
         clearPendingFile();

@@ -7,6 +7,8 @@ import { resolveCanvasRightPanel, useCanvasAssistant, useCanvasAssistantDockable
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, MouseEvent as ReactMouseEvent, SetStateAction } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { isAndroidMobile } from "@/lib/mobile-platform";
+import { viewportForBounds, getCanvasNodesBounds } from "@/lib/canvas/canvas-viewport";
 import { appHref } from "@/lib/app-routing";
 import { isLocalWorkspaceMode } from "@/services/workspace-mode";
 import { queryGenerationTask, type GenerationTask } from "@/services/api/task-center";
@@ -859,7 +861,14 @@ function InfiniteCanvasPage() {
             if (!didInitialCenterRef.current) {
                 didInitialCenterRef.current = true;
                 const current = viewportRef.current;
-                if (current.x === 0 && current.y === 0 && current.k === 1) {
+                if (isAndroidMobile && current.k === 1) {
+                    const bounds = getCanvasNodesBounds(nodesRef.current);
+                    const compact = bounds
+                        ? viewportForBounds(bounds, { width: rect.width, height: rect.height }, { padding: 48, maxScale: 0.5 })
+                        : { x: rect.width / 2, y: rect.height / 2, k: 0.5 };
+                    viewportRef.current = compact;
+                    setViewport(compact);
+                } else if (current.x === 0 && current.y === 0 && current.k === 1) {
                     const centered = { x: rect.width / 2, y: rect.height / 2, k: 1 };
                     viewportRef.current = centered;
                     setViewport(centered);

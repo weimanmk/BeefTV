@@ -24,6 +24,10 @@ public class MobileSmoke extends Instrumentation {
             Intent launch = new Intent(getTargetContext(), MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             MainActivity activity = (MainActivity)startActivitySync(launch);
             activeActivity = activity;
+            check(MainActivity.trustedAccountURL(android.net.Uri.parse("https://beeftv.app/device?user_code=TEST")), "Account browser URL rejected");
+            check(!MainActivity.trustedAccountURL(android.net.Uri.parse("https://beeftv.app.evil.test/device")), "Untrusted account browser host accepted");
+            check(!MainActivity.trustedAccountURL(android.net.Uri.parse("http://beeftv.app/device")), "Insecure account URL accepted");
+            check(!MainActivity.trustedAccountURL(android.net.Uri.parse("https://user@beeftv.app/device")), "Account URL userinfo accepted");
             JSONObject session = new JSONObject(MainActivity.startBackend(new java.io.File(getTargetContext().getFilesDir(), "workspace").getAbsolutePath()));
             check(!session.has("error"), "Native backend startup failed: " + session.optString("error"));
             String url = session.getString("url");

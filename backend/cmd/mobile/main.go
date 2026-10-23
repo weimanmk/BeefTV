@@ -13,6 +13,8 @@ import (
     "embed"
     "encoding/hex"
     "encoding/json"
+    "errors"
+    "net/url"
     "io/fs"
     "net/http"
     "os"
@@ -31,6 +33,28 @@ var bundledUI embed.FS
 var runtimeMu sync.Mutex
 var mobileRuntime *bootstrap.Runtime
 var sessionJSON string
+var browserMu sync.Mutex
+var browserURL string
+
+func queueBrowserURL(target string) error {
+    parsed, err := url.Parse(target)
+    if err != nil || parsed.Scheme != "https" || parsed.User != nil || (parsed.Port() != "" && parsed.Port() != "443") ||
+        (parsed.Hostname() != "beeftv.app" && parsed.Hostname() != "enterprise.beefapi.com") {
+        return errors.New("不支持的账号授权地址")
+    }
+    browserMu.Lock()
+    browserURL = target
+    browserMu.Unlock()
+    return nil
+}
+
+func takeBrowserURL() string {
+    browserMu.Lock()
+    defer browserMu.Unlock()
+    target := browserURL
+    browserURL = ""
+    return target
+}
 
 //export StartMobile
 func StartMobile(dataDir *C.char) *C.char {
@@ -53,6 +77,7 @@ func StartMobile(dataDir *C.char) *C.char {
             // Stable origin keeps IndexedDB and UI preferences across launches.
             ListenAddr: "127.0.0.1:18790",
             AutoMigrate: true,
+            OpenExternalURL: queueBrowserURL,
             RouterMiddleware: []gin.HandlerFunc{mobileHandler(ui, token, ownerToken)},
         })
         if err != nil { return nil, err }
@@ -85,6 +110,12 @@ func mobileHandler(ui fs.FS, token, ownerToken string) gin.HandlerFunc {
         // credential entirely inside Go and never authorize client administration.
         if c.Request.Method == http.MethodPost && mobileManualOperation(c.Request.URL.Path) {
             c.Request.Header.Set("X-Beeftv-Owner", ownerToken)
+        }
+        if c.Request.URL.Path == "/api/mobile/browser-request" {
+            if c.Request.Method != http.MethodGet { c.AbortWithStatus(405); return }
+            c.Header("Cache-Control", "no-store")
+            c.AbortWithStatusJSON(200, gin.H{"code": 0, "data": gin.H{"url": takeBrowserURL()}, "msg": ""})
+            return
         }
         if c.Request.URL.Path == "/api" || strings.HasPrefix(c.Request.URL.Path, "/api/") { c.Next(); return }
         if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead { c.AbortWithStatus(405); return }

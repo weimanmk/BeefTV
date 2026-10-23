@@ -1,3 +1,4 @@
+import { isAndroidMobile } from "@/lib/mobile-platform";
 import { useCallback, useEffect, useRef, type Dispatch, type MouseEvent, type SetStateAction } from "react";
 
 import { isNodeHiddenByCollapsedFrame } from "@/lib/canvas/canvas-frame";
@@ -77,10 +78,10 @@ export function useCanvasViewportController({
         return screenToCanvas((rect?.left || 0) + (rect?.width || size.width) / 2, (rect?.top || 0) + (rect?.height || size.height) / 2);
     }, [containerRef, screenToCanvas, size.height, size.width]);
 
-    const focusNodesInView = useCallback((targetNodes: CanvasNodeData[], maxScale = 1) => {
+    const focusNodesInView = useCallback((targetNodes: CanvasNodeData[], maxScale = isAndroidMobile ? 0.5 : 1) => {
         const bounds = getCanvasNodesBounds(targetNodes);
         if (!bounds) return false;
-        transitionViewportTo(viewportForBounds(bounds, size, { padding: 88, maxScale }));
+        transitionViewportTo(viewportForBounds(bounds, size, { padding: 88, maxScale: isAndroidMobile ? Math.min(maxScale, 0.5) : maxScale }));
         setContextMenu(null);
         return true;
     }, [setContextMenu, size, transitionViewportTo]);
@@ -116,22 +117,36 @@ export function useCanvasViewportController({
     const focusCanvasImageNode = useCallback((nodeId: string) => {
         const node = nodesRef.current.find((item) => item.id === nodeId && item.type === CanvasNodeType.Image);
         if (!node) return;
+        if (isAndroidMobile) {
+            focusNodesInView([node], 0.5);
+            selectFocusedNode(node.id);
+            setDialogNodeId(null);
+            setToolbarNodeId(node.id);
+            return;
+        }
         const scale = Math.min(1.25, Math.max(viewportRef.current.k, 0.78));
         transitionViewportTo({ x: size.width / 2 - (node.position.x + node.width / 2) * scale, y: size.height / 2 - (node.position.y + node.height / 2) * scale, k: scale });
         selectFocusedNode(node.id);
         setDialogNodeId(null);
         setToolbarNodeId(node.id);
-    }, [nodesRef, selectFocusedNode, setDialogNodeId, setToolbarNodeId, size.height, size.width, transitionViewportTo, viewportRef]);
+    }, [focusNodesInView, nodesRef, selectFocusedNode, setDialogNodeId, setToolbarNodeId, size.height, size.width, transitionViewportTo, viewportRef]);
 
     const focusCanvasNode = useCallback((nodeId: string) => {
         const node = nodesRef.current.find((item) => item.id === nodeId);
         if (!node) return;
+        if (isAndroidMobile) {
+            focusNodesInView([node], 0.5);
+            selectFocusedNode(node.id);
+            setDialogNodeId(canOpenCanvasNodePromptPanel(node) ? node.id : null);
+            setToolbarNodeId(isCanvasMediaResultNode(node) ? node.id : null);
+            return;
+        }
         const scale = Math.min(1.18, Math.max(viewportRef.current.k, 0.72));
         transitionViewportTo({ x: size.width / 2 - (node.position.x + node.width / 2) * scale, y: size.height / 2 - (node.position.y + node.height / 2) * scale, k: scale });
         selectFocusedNode(node.id);
         setDialogNodeId(canOpenCanvasNodePromptPanel(node) ? node.id : null);
         setToolbarNodeId(isCanvasMediaResultNode(node) ? node.id : null);
-    }, [nodesRef, selectFocusedNode, setDialogNodeId, setToolbarNodeId, size.height, size.width, transitionViewportTo, viewportRef]);
+    }, [focusNodesInView, nodesRef, selectFocusedNode, setDialogNodeId, setToolbarNodeId, size.height, size.width, transitionViewportTo, viewportRef]);
 
     const setZoomScale = useCallback((scale: number) => {
         cancelViewportTransition();

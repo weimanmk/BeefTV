@@ -27,6 +27,7 @@ type Config struct {
 	AutoMigrate      bool
 	ShutdownTimeout  time.Duration
 	RouterMiddleware []gin.HandlerFunc
+	OpenExternalURL  func(string) error
 }
 
 func (c Config) withDefaults() Config {

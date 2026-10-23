@@ -14,7 +14,7 @@ sh plugin-packages/build-packages.sh
 cp plugin-packages/*.beeftv-plugin backend/cmd/mobile/officialplugins/
 cp -R web/dist/. backend/cmd/mobile/webui/
 cd backend
-go test ./cmd/mobile
+go test ./cmd/mobile ./internal/beefapi
 for target in arm64-v8a:arm64:aarch64 x86_64:amd64:x86_64; do
     IFS=: read -r ABI ARCH TRIPLE <<< "$target"
     OUTPUT="$ROOT/android/app/src/main/jniLibs/$ABI"

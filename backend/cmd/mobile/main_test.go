@@ -67,3 +67,28 @@ func TestMobileManualPrincipalRequiresSessionAndExactOperation(t *testing.T) {
         })
     }
 }
+
+func TestMobileBrowserQueue(t *testing.T) {
+    _ = takeBrowserURL()
+    for _, target := range []string{"http://beeftv.app/login", "https://beeftv.app.evil.test/login", "https://beeftv.app:444/login", "https://user@beeftv.app/login", "javascript:alert(1)"} {
+        if queueBrowserURL(target) == nil { t.Fatalf("accepted unsafe browser URL %q", target) }
+    }
+    target := "https://beeftv.app/device?user_code=TEST"
+    if err := queueBrowserURL(target); err != nil { t.Fatal(err) }
+    router := gin.New()
+    router.Use(mobileHandler(fstest.MapFS{}, "session", "owner"))
+    // Unauthorized and cross-origin requests must not consume a queued login.
+    for _, test := range []struct{method, cookie, origin string; status int}{
+        {"GET", "", "", 401}, {"GET", "session", "https://other.test", 403},
+        {"POST", "session", "", 405}, {"GET", "session", "", 200},
+    } {
+        req := httptest.NewRequest(test.method, "http://127.0.0.1:18790/api/mobile/browser-request", nil)
+        req.AddCookie(&http.Cookie{Name: "BeefTVSession", Value: test.cookie})
+        req.Header.Set("Origin", test.origin)
+        response := httptest.NewRecorder()
+        router.ServeHTTP(response, req)
+        if response.Code != test.status { t.Fatalf("browser status=%d, want %d", response.Code, test.status) }
+        if test.status == 200 && !strings.Contains(response.Body.String(), target) { t.Fatal("browser URL lost before native handoff") }
+    }
+    if takeBrowserURL() != "" { t.Fatal("browser URL was delivered twice") }
+}
