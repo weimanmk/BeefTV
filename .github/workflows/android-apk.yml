@@ -3,7 +3,7 @@ name: Android APK
 on:
   push:
     branches: [android-mobile]
-    paths: ['android/**', 'backend/**', 'web/**', 'scripts/build-android.sh', 'scripts/sign-android-release.sh', '.github/workflows/android-apk.yml']
+    paths: ['VERSION', 'android/**', 'backend/**', 'web/**', 'plugin-packages/**', 'scripts/build-android.sh', 'scripts/sign-android-release.sh', '.github/workflows/android-apk.yml']
   workflow_dispatch:
 
 permissions:
