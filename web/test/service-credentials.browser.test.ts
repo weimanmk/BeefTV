@@ -11,7 +11,7 @@ let server: ReturnType<typeof Bun.serve>;
 
 beforeAll(async () => {
     const build = await Bun.build({ entrypoints: [import.meta.dir + "/fixtures/model-service-credentials-harness.tsx"], target: "browser", define: {
-        "import.meta.env.DEV": "false", "import.meta.env.PROD": "true", "import.meta.env.MODE": '"production"', "import.meta.env.VITE_CANVAS_LOCAL_MODE": '"true"', "import.meta.env.VITE_CANVAS_BACKEND_URL": '"/api"', "process.env.NODE_ENV": '"production"',
+        "import.meta.env": JSON.stringify({ DEV: false, PROD: true, MODE: "production", VITE_CANVAS_LOCAL_MODE: "true", VITE_CANVAS_BACKEND_URL: "/api", VITE_BEEFTV_PLATFORM: "web" }), "process.env.NODE_ENV": '"production"',
     }, plugins: [{ name: "source", setup(builder) {
         builder.onResolve({ filter: /^@\/components\/model-logo$/ }, () => ({ path: "model-logo", namespace: "test-icons" }));
         builder.onLoad({ filter: /.*/, namespace: "test-icons" }, () => ({ contents: "export function ModelLogo() { return null; }", loader: "js" }));
@@ -62,6 +62,7 @@ async function waitForSaved(page: Page, count: number, label: string) {
 
 async function openConnectionStep(scenario: string) {
     const page = await browser.newPage({ viewport: { width: 1120, height: 900 }, deviceScaleFactor: 2 });
+    page.on("pageerror", error => console.error("model service fixture:", error.message));
     await page.goto(server.url.toString() + `?scenario=${scenario}`);
     // initial 通道从第 2 步进来，回到「连接信息」看凭证字段。
     await page.getByRole("button", { name: "连接信息", exact: true }).click();
@@ -71,6 +72,7 @@ async function openConnectionStep(scenario: string) {
 
 async function openModelsStep(scenario: string) {
     const page = await browser.newPage({ viewport: { width: 1120, height: 900 }, deviceScaleFactor: 2 });
+    page.on("pageerror", error => console.error("model service fixture:", error.message));
     await page.goto(server.url.toString() + `?scenario=${scenario}`);
     await page.getByText("选择你要使用的模型", { exact: true }).waitFor();
     return page;
