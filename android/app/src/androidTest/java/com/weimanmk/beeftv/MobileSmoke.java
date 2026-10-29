@@ -222,7 +222,7 @@ public class MobileSmoke extends Instrumentation {
         stage("model-form");
         navigateWorkspace(activity, url + "/settings?section=channels", ".settings-pane-header-actions .ant-btn");
         check("true".equals(evaluate(activity, "(()=>{const b=[...document.querySelectorAll('.settings-pane-header-actions button')].find(e=>e.innerText.includes('添加模型服务'));if(!b)return false;b.click();return true})()")), "Add model service missing");
-        awaitDOM(activity, "document.querySelector('.model-service-modal input[aria-label='服务地址']')", "Model form missing");
+        awaitDOM(activity, "document.querySelector(\".model-service-modal input[aria-label='服务地址']\")", "Model form missing");
         for (String label : new String[]{"连接名称", "API Key", "服务地址"}) {
             clickDOM(activity, ".model-service-modal input[aria-label='" + label + "']");
             check("true".equals(evaluate(activity, "(()=>{const e=document.querySelector('.model-service-modal input[aria-label=\"" + label + "\"]'),r=e.getBoundingClientRect(),p=document.querySelector('.model-service-modal .ant-modal-body').getBoundingClientRect();return r.height>20&&r.top>=p.top-1&&r.bottom<=p.bottom+1})()")), "Model input clipped: " + label);
