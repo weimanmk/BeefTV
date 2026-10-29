@@ -14,7 +14,7 @@ sh plugin-packages/build-packages.sh
 cp plugin-packages/*.beeftv-plugin backend/cmd/mobile/officialplugins/
 cp -R web/dist/. backend/cmd/mobile/webui/
 cd backend
-go test ./cmd/mobile ./internal/beefapi ./internal/referencestorage ./internal/editing ./internal/generation ./internal/canvas
+go test ./cmd/mobile ./internal/beefapi ./internal/referencestorage ./internal/editing ./internal/generation ./internal/canvas ./internal/database ./internal/modelcatalog ./internal/task
 BEEFTV_MOBILE_BROWSER=1 go test ./cmd/mobile -run '^TestMobileWorkspaceBrowser$' -count=1 -timeout=3m
 go test ./internal/app -run 'Test.*(Seedream|AutoRecovery|ImageRecovery|VideoProtocol|ReferenceDuration)' -count=1 -timeout=5m
 for target in arm64-v8a:arm64:aarch64 x86_64:amd64:x86_64; do

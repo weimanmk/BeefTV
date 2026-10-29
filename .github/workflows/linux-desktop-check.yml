@@ -3,7 +3,7 @@ name: Linux desktop package checks
 on:
   push:
     branches: [android-mobile]
-    paths: ['.github/workflows/linux-desktop-check.yml', 'VERSION', 'plugin-packages/**']
+    paths: ['.github/workflows/linux-desktop-check.yml', 'VERSION', 'plugin-packages/**', 'backend/**', 'web/**', 'agent-host/**']
   pull_request:
     paths:
       - 'backend/**'

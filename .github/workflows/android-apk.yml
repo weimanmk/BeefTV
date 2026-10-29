@@ -63,6 +63,7 @@ jobs:
           bun test test/mobile-parity.browser.test.ts test/canvas-node-title.browser.test.ts test/media-upscale.test.ts test/reference-media-upload.test.ts
           bun test test/canvas-lod-interaction.browser.test.ts test/canvas-viewport-controller.browser.test.ts test/service-credentials.browser.test.ts
           bun test test/canvas-lod.test.ts test/seedream-image.test.ts test/service-credentials.test.ts test/model-service-presets.test.ts test/video-reference-duration.test.ts
+          bun test test/task-outcome.test.ts test/model-capabilities.test.ts test/canvas-generation-failure.test.ts test/canvas-generation-error-codes.test.ts
       - name: Build frontend, native backend and APK
         env:
           NODE_OPTIONS: --max-old-space-size=6144
