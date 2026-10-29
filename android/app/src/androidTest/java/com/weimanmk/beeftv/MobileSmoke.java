@@ -63,7 +63,7 @@ public class MobileSmoke extends Instrumentation {
             stage("verifyModelConfig");
             verifyModelConfig(url, cookie, evidence);
             stage("verifyMobileLayout");
-            verifyMobileLayout(activity, url);
+            verifyMobileLayout(activity, url, evidence);
             stage("verifyResources");
             verifyResources(activity, url, cookie, evidence);
             stage("verifyLibraryCRUD");
@@ -188,12 +188,26 @@ public class MobileSmoke extends Instrumentation {
         check("true".equals(evaluate(activity, "(()=>{const e=document.querySelector(" + query + ");if(!e)return false;e.scrollIntoView({block:'nearest'});const r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);if(!r.width||!r.height||!e.contains(hit))return false;e.click();return true})()")), "Control hidden or covered: " + selector);
         Thread.sleep(400);
     }
-    private void verifyMobileLayout(MainActivity activity, String url) throws Exception {
+    private void navigateWorkspace(MainActivity activity, String target, String selector) throws Exception {
+        String fence = java.util.UUID.randomUUID().toString();
+        evaluate(activity, "window.__mobileSmokeNavigation=" + JSONObject.quote(fence));
+        runOnMainSync(() -> activity.web.loadUrl(target));
+        // A same-route reload can briefly expose the old page's matching DOM.
+        awaitDOM(activity, "window.__mobileSmokeNavigation!==" + JSONObject.quote(fence)
+            + " && document.readyState==='complete' && document.querySelector(" + JSONObject.quote(selector) + ")", "New workspace document did not render: " + target);
+        waitForIdleSync();
+    }
+    private void verifyMobileLayout(MainActivity activity, String url, SharedPreferences evidence) throws Exception {
         check(activity.getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE, "APK did not force landscape");
         check("true".equals(evaluate(activity, "innerWidth>innerHeight && innerWidth<1024")), "Landscape mobile viewport unavailable");
         evaluate(activity, "localStorage.setItem('infinite-canvas:workspace-sidebar-collapsed','1')");
-        runOnMainSync(() -> activity.web.loadUrl(url + "/"));
-        awaitDOM(activity, "document.querySelector('.beeftv-home')", "Home missing");
+        navigateWorkspace(activity, url + "/", ".beeftv-home");
+        if (!evidence.getBoolean("welcome-dismissed", false)) {
+            awaitDOM(activity, "document.querySelector('.first-creation-actions button')", "First-run guide missing");
+            clickDOM(activity, ".first-creation-actions button");
+            awaitDOM(activity, "!document.querySelector('.first-creation-actions')", "First-run guide did not dismiss");
+            check(evidence.edit().putBoolean("welcome-dismissed", true).commit(), "Cannot save guide check evidence");
+        }
         stage("drawer-open");
         captureScreen("home-landscape.png");
         clickDOM(activity, "[aria-label='展开侧栏']");
@@ -206,8 +220,7 @@ public class MobileSmoke extends Instrumentation {
         clickDOM(activity, ".workspace-mobile-navigation [aria-label='收起侧栏']");
         awaitDOM(activity, "!document.querySelector('.workspace-mobile-navigation .ant-drawer-body')", "Drawer close failed");
         stage("model-form");
-        runOnMainSync(() -> activity.web.loadUrl(url + "/settings?section=channels"));
-        awaitDOM(activity, "document.querySelector('.settings-pane-header-actions .ant-btn')", "Model settings missing");
+        navigateWorkspace(activity, url + "/settings?section=channels", ".settings-pane-header-actions .ant-btn");
         check("true".equals(evaluate(activity, "(()=>{const b=[...document.querySelectorAll('.settings-pane-header-actions button')].find(e=>e.innerText.includes('添加模型服务'));if(!b)return false;b.click();return true})()")), "Add model service missing");
         awaitDOM(activity, "document.querySelector('.model-service-modal input[aria-label='服务地址']')", "Model form missing");
         for (String label : new String[]{"连接名称", "API Key", "服务地址"}) {
@@ -217,8 +230,7 @@ public class MobileSmoke extends Instrumentation {
         captureScreen("model-form-landscape.png");
         clickDOM(activity, ".model-service-modal .ant-modal-close");
         stage("director");
-        runOnMainSync(() -> activity.web.loadUrl(url + "/canvas?mode=new&start=director"));
-        awaitDOM(activity, "document.querySelector('[data-director-workbench]')", "Director did not open");
+        navigateWorkspace(activity, url + "/canvas?mode=new&start=director", "[data-director-workbench]");
         Thread.sleep(1500);
         check("true".equals(evaluate(activity, "(()=>{const root=document.querySelector('[data-director-workbench]'),v=root.querySelector('main').getBoundingClientRect(),p=root.querySelector('[data-director-right-dock]').getBoundingClientRect();return root.dataset.leftDockCollapsed==='true'&&p.width===0&&v.width>innerWidth*.7&&v.height>innerHeight*.65})()")), "Director viewport squeezed by docks");
         captureScreen("director-landscape.png");
@@ -238,7 +250,7 @@ public class MobileSmoke extends Instrumentation {
         check(java.util.Arrays.asList(MainActivity.fileMimeTypes(new String[]{".zip,.json", "image/*"})).contains("application/zip"), "ZIP file picker filter missing");
         String[][] routes = {{"/canvas", ".lib-tv-project-page"}, {"/assets", ".assets-library-page"}, {"/settings", ".settings-page"}, {"/canvas/mobile-canvas-save-smoke", "[data-node-id='mobile-text-1']"}};
         for (String[] route : routes) {
-            runOnMainSync(() -> activity.web.loadUrl(url + route[0]));
+            navigateWorkspace(activity, url + route[0], route[1]);
             boolean ready = false;
             for (int attempt = 0; attempt < 120; attempt++) {
                 // Route identity and real content are required; the shared shell alone is insufficient.
@@ -345,13 +357,7 @@ public class MobileSmoke extends Instrumentation {
         payload.put("opId", java.util.UUID.randomUUID().toString());
         JSONObject stale = browserCommit(activity, payload);
         check(stale.getInt("code") == 409, "Stale canvas revision was accepted");
-        runOnMainSync(() -> activity.web.loadUrl(url + "/canvas/" + canvasID));
-        boolean nodeRendered = false;
-        for (int attempt = 0; attempt < 180; attempt++) {
-            if ("true".equals(evaluate(activity, "Boolean(document.querySelector('[data-node-id=\"mobile-text-1\"]'))"))) { nodeRendered = true; break; }
-            Thread.sleep(500);
-        }
-        check(nodeRendered, "Saved canvas node did not render in the editor");
+        navigateWorkspace(activity, url + "/canvas/" + canvasID, "[data-node-id='mobile-text-1']");
         check("true".equals(evaluate(activity, "document.querySelector('[data-node-id=\"mobile-text-1\"]').innerText.includes('Saved on Android')")), "Saved text did not render inside the node");
         android.graphics.Bitmap screenshot = getUiAutomation().takeScreenshot();
         if (screenshot != null) {
