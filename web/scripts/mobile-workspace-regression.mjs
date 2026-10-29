@@ -82,6 +82,23 @@ test("packaged director retains a useful stage and reachable scene/property pane
         assert.equal(await root.getAttribute("data-left-dock-collapsed"), "true");
         const stage = await root.locator("main").boundingBox();
         assert.ok(stage && stage.width > 960 * .7 && stage.height > 480 * .65, "Director stage is squeezed by docks");
+        const guide = page.getByRole("region", { name: "导演台上手引导" });
+        const next = guide.getByRole("button", { name: "下一步", exact: true });
+        await next.waitFor();
+        const contrast = await next.evaluate(button => {
+            const style = getComputedStyle(button);
+            const luminance = color => {
+                const rgb = color.match(/[\d.]+/g).slice(0, 3).map(Number).map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+                return rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722;
+            };
+            const text = luminance(style.color), background = luminance(style.backgroundColor);
+            return (Math.max(text, background) + .05) / (Math.min(text, background) + .05);
+        });
+        assert.ok(contrast >= 4.5, "Director onboarding action text is unreadable");
+        await next.tap();
+        await guide.getByText("把演员移动到表演位置", { exact: true }).waitFor();
+        await guide.getByRole("button", { name: "跳过引导", exact: true }).tap();
+        await guide.waitFor({ state: "hidden" });
         await screenshot(page, "director-landscape");
         await page.getByRole("button", { name: "展开场景面板", exact: true }).tap();
         assert.equal(await root.getAttribute("data-left-dock-collapsed"), "false");

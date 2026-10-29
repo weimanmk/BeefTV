@@ -237,9 +237,9 @@ export function CanvasDirectorOnboarding({ scope, open = true, restartSignal = 0
                         style={{
                             height: "var(--space-6)",
                             padding: "0 var(--space-3)",
-                            border: "var(--stroke-1) solid var(--workspace-accent)",
+                            border: "var(--stroke-1) solid var(--btn-solid-bg)",
                             borderRadius: "var(--r-sm)",
-                            background: "var(--workspace-accent)",
+                            background: "var(--btn-solid-bg)",
                             color: "var(--btn-solid-fg)",
                             fontSize: "var(--fs-tiny)",
                         }}
