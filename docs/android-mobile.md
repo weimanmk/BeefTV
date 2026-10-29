@@ -37,7 +37,7 @@ WebView 的明文 HTTP 仅放行回环地址。后端模型中转沿用原项目
 
 ## 本地构建
 
-在 Linux 安装项目要求的 Go、Bun、JDK 17、Gradle 8.11.1、Android SDK 35 和 NDK 28.2.13676358 后：
+在 Linux 安装项目要求的 Go、Bun、Node.js 24、JDK 17、Gradle 8.11.1、Android SDK 35 和 NDK 28.2.13676358，并安装 Playwright Chromium 后：
 
 ```sh
 export ANDROID_HOME=/path/to/android-sdk
@@ -63,4 +63,12 @@ Android 冒烟测试新增横屏方向、菜单展开/关闭/导航、模型表�
 合入 fork main 的 v2.0.3 超分超时与错误分类修复。手机设置提供紧凑/舒适密度，默认 13px 根字号和 30px 常规 AntD 控件；桌面尺寸保持原值。画布百分比仍表示真实画布比例，不伪造 100%。节点和背板尺寸手柄使用 Pointer Events、pointer capture 和 pointercancel，兼容触摸与鼠标。
 
 新增无付费模型的 desktop / Android touch Chromium 组件回归和 Go 文件名、字节、权限、取消/保存回执测试。自动化浏览器测试不能替代 Windows/macOS 安装版或 Android 真机验收。此前 Android CI 模拟器出现离线，原有 smoke job 保留诊断；未取得通过证据前不能写成实机回归完成。
+
+### 0.1.6 同步基线与检查入口
+
+同步桌面 v2.0.5 及上游 `bdaa37fb9ceed6f3e67338ac02aa592c883b0e6e`，包括画布 LOD 与视口修复、模型协议与凭证提示、生成结果恢复、视频与超分任务取回，以及结算字段的 v27 数据库迁移。上游拆分提示词组件后，手机的 13px 默认文字、双行紧凑输入区和展开高度继续保留在对应模块。
+
+完整手机前端由真实本地 Go 工作区提供，使用独立 Node/Playwright 脚本检查首页抽屉、横屏模型表单和导演台面板，并保留截图。此路径不替换业务 API、不读取用户数据库、不调用付费模型。Linux 工作流另外构建桌面包并检查 CLI 和原生窗口；Android smoke 检查打包后的 WebView。应以相应工作流的最终结果为准，不能将测试入口存在当作验收通过。
+
+签名预检先核对固定证书，再进行正式签名并验证成品 APK。覆盖升级适用于已安装同一 0.1.5 固定证书的版本；调试包和旧临时签名不在这个范围内。
 

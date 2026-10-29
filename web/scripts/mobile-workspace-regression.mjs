@@ -16,6 +16,8 @@ before(async () => {
         args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
     });
     context = await browser.newContext({ viewport: { width: 960, height: 480 }, hasTouch: true, isMobile: true });
+    context.setDefaultTimeout(10000);
+    context.setDefaultNavigationTimeout(15000);
     await context.addCookies([{ name: "BeefTVSession", value: "browser-fixture-session", url: base, httpOnly: true, sameSite: "Strict" }]);
     await context.route("**/*", route => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
 });
@@ -32,6 +34,11 @@ test("packaged home drawer navigates and closes despite saved desktop collapse",
     const page = await visit("/");
     try {
         await page.locator(".beeftv-home").waitFor();
+        const welcome = page.getByRole("dialog", { name: "完成第一次创作" });
+        await welcome.waitFor();
+        await screenshot(page, "first-run-guide");
+        await welcome.getByRole("button", { name: /稍\s*后/ }).tap();
+        await welcome.waitFor({ state: "hidden" });
         await page.evaluate(() => localStorage.setItem("infinite-canvas:workspace-sidebar-collapsed", "1"));
         await page.reload();
         await page.locator(".beeftv-home").waitFor();
