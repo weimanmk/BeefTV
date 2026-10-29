@@ -3,7 +3,7 @@ name: Android APK
 on:
   push:
     branches: [android-mobile]
-    paths: ['android/**', 'backend/**', 'web/**', 'scripts/build-android.sh', '.github/workflows/android-apk.yml']
+    paths: ['android/**', 'backend/**', 'web/**', 'scripts/build-android.sh', 'scripts/sign-android-release.sh', '.github/workflows/android-apk.yml']
   workflow_dispatch:
 
 permissions:
@@ -30,6 +30,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Validate persistent upgrade signing before building
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_SIGNING_CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
+        run: bash scripts/sign-android-release.sh --check
       - uses: android-actions/setup-android@v3
         with:
           packages: 'platform-tools'
@@ -48,7 +56,10 @@ jobs:
         working-directory: web
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-        run: bun test test/mobile-parity.browser.test.ts test/canvas-node-title.browser.test.ts test/media-upscale.test.ts test/reference-media-upload.test.ts
+        run: |
+          bun test test/mobile-parity.browser.test.ts test/canvas-node-title.browser.test.ts test/media-upscale.test.ts test/reference-media-upload.test.ts
+          bun test test/canvas-lod-interaction.browser.test.ts test/canvas-viewport-controller.browser.test.ts test/service-credentials.browser.test.ts
+          bun test test/canvas-lod.test.ts test/seedream-image.test.ts test/service-credentials.test.ts test/model-service-presets.test.ts test/video-reference-duration.test.ts
       - name: Build frontend, native backend and APK
         env:
           NODE_OPTIONS: --max-old-space-size=6144
@@ -86,6 +97,12 @@ jobs:
           path: android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           if-no-files-found: error
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Mobile-Workspace-Browser-Evidence
+          path: mobile-browser-evidence/
+          retention-days: 14
 
   media-regression:
     runs-on: ubuntu-24.04
@@ -139,16 +156,16 @@ jobs:
       - name: Test packaged app and persistence after process restart
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: 35
           arch: x86_64
-          target: google_apis
-          profile: pixel_6
+          target: default
+          profile: pixel_2
           disable-animations: true
           emulator-build: 13610412
           cores: 2
           ram-size: 4096M
           heap-size: 512M
-          emulator-options: -no-window -gpu swiftshader_indirect -feature -Vulkan -no-snapshot -noaudio -no-boot-anim
+          emulator-options: -no-window -gpu swiftshader -feature -Vulkan -no-snapshot -noaudio -no-boot-anim
           script: |
             adb logcat -v threadtime > android-live-logcat.txt &
             free -m

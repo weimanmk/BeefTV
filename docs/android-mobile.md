@@ -6,7 +6,7 @@
 
 GitHub Actions → **Android APK** → **BeefTV-Mobile-Release**。配置持久签名后安装 `BeefTV-Mobile.apk`；`app-release-unsigned.apk` 未签名，不能直接安装。**BeefTV-Mobile-APK** 中的 debug APK 仅用于 CI 冒烟，不用于长期升级。
 
-在仓库 Actions Secrets 配置 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`、`ANDROID_SIGNING_CERT_SHA256`。工作流使用同一密钥并校验 SHA256；密钥或指纹错误会失败。私钥必须单独备份，绝不能提交到仓库。固定包名和递增 versionCode 用于后续覆盖升级。
+在仓库 Actions Secrets 配置 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`、`ANDROID_SIGNING_CERT_SHA256`。工作流先验证签名配置与 `android/signing-certificate.sha256` 中的 0.1.5 证书一致，再构建和签名；缺少配置、密钥错误或指纹变化均会失败，不再把未签名包当作成功交付。私钥必须单独备份，绝不能提交到仓库。固定包名和递增 versionCode 用于后续覆盖升级。
 
 0.1.4 及更早版本使用临时 runner debug 密钥，无法恢复其私钥；新签名不能覆盖那些旧签名。迁移前先导出画布和素材，验证备份可读，再安装新签名版本。固定签名只能保证使用该密钥的后续版本升级。
 

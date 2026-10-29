@@ -8,13 +8,15 @@ bun install --frozen-lockfile
 for suite in canvas-archive-restore canvas-history-restore canvas-version-history export-integrity manual-channel-protocol canvas-pointer-chrome; do
     bun test "test/$suite.test.ts"
 done
-CANVAS_BUILD_VERSION=0.1.5-mobile BEEFTV_FULL_MEDIA_RESOURCES=1 BEEFTV_DIST_PLATFORM=android bun run build:full
+CANVAS_BUILD_VERSION=0.1.6-mobile BEEFTV_FULL_MEDIA_RESOURCES=1 BEEFTV_DIST_PLATFORM=android bun run build:full
 cd "$ROOT"
 sh plugin-packages/build-packages.sh
 cp plugin-packages/*.beeftv-plugin backend/cmd/mobile/officialplugins/
 cp -R web/dist/. backend/cmd/mobile/webui/
 cd backend
-go test ./cmd/mobile ./internal/beefapi ./internal/referencestorage ./internal/editing
+go test ./cmd/mobile ./internal/beefapi ./internal/referencestorage ./internal/editing ./internal/generation ./internal/canvas
+BEEFTV_MOBILE_BROWSER=1 go test ./cmd/mobile -run '^TestMobileWorkspaceBrowser$' -count=1 -timeout=3m
+go test ./internal/app -run 'Test.*(Seedream|AutoRecovery|ImageRecovery|VideoProtocol|ReferenceDuration)' -count=1 -timeout=5m
 for target in arm64-v8a:arm64:aarch64 x86_64:amd64:x86_64; do
     IFS=: read -r ABI ARCH TRIPLE <<< "$target"
     OUTPUT="$ROOT/android/app/src/main/jniLibs/$ABI"

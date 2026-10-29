@@ -6,6 +6,7 @@ BeefTV 是一个本地优先、轻量、AI Native 的视频工作台。本页只
 
 - [项目首页与快速开始](../README.md)
 - [功能概览](content/docs/overview/features.mdx)
+- [Agent、Skills 与工作流实机案例](content/docs/overview/examples.mdx)
 - [本地优先架构](local-first-architecture.md)
 - [桌面端本地开发](desktop-local-development.md)
 - [创作助手测试分支安装与试用](agent-branch-testing.md)
@@ -26,6 +27,7 @@ BeefTV 是一个本地优先、轻量、AI Native 的视频工作台。本页只
 ## 开发参考
 
 - [后端本地开发](content/docs/backend/local-development.mdx)
+- [beeftv 命令行基础使用](content/docs/backend/beeftv-cli.mdx)
 - [HTTP API](content/docs/backend/http-api.mdx)
 - [代码地图](content/docs/backend/code-map.mdx)
 - [官方 Pi SDK 复用矩阵](refactor/pi-official-reuse.md)
@@ -38,6 +40,8 @@ BeefTV 是一个本地优先、轻量、AI Native 的视频工作台。本页只
 - [生成失败归类](content/docs/backend/generation-errors.mdx)
 - [插件系统](content/docs/plugins/plugin-system.mdx)
 - [插件界面扩展](content/docs/plugins/plugin-surfaces.mdx)
+- [撤下官方协议插件时的旧配置与任务保护](refactor/plugin-retention.md)
+- [已保存模型按哪个协议执行：后台盘点规则与前端接口约定](refactor/protocol-decision.md)
 - [AI 审美批改插件](content/docs/plugins/ai-art-critique.mdx)
 - [剪辑导出调用方与规划分叉](refactor/editing.md)
 - [生成结果第一段入库](refactor/media-ingest.md)
